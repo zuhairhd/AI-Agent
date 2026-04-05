@@ -5,7 +5,7 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
 from apps.voice_calls.models import CallRecord
 from tasks.call_tasks import process_call
@@ -120,4 +120,34 @@ def ask_question(request):
         'answer': answer,
         'source': 'company_documents',
         'found': answer != FALLBACK_RESPONSE,
+    })
+
+
+@require_GET
+def call_status(request, call_id: str):
+    """
+    GET /api/call-status/<call_id>/
+
+    Returns the current status of a call and, once TTS has completed,
+    the absolute path of the response WAV file Asterisk should play.
+
+    No authentication required for localhost callers (Asterisk AGI script).
+    """
+    try:
+        call = CallRecord.objects.get(id=call_id)
+    except (CallRecord.DoesNotExist, Exception):
+        logger.warning(f"call_status: unknown call_id={call_id!r}")
+        return JsonResponse({'error': 'Call not found.'}, status=404)
+
+    has_audio = bool(call.response_audio_path)
+    logger.info(
+        f"call_status: call={call_id} status={call.status} "
+        f"has_audio={has_audio} path={call.response_audio_path or '-'}"
+    )
+
+    return JsonResponse({
+        'call_id':             str(call.id),
+        'status':              call.status,
+        'response_audio_path': call.response_audio_path or None,
+        'has_audio':           has_audio,
     })

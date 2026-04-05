@@ -5,15 +5,18 @@ from apps.core.models import TimeStampedModel
 
 class CallRecord(TimeStampedModel):
     class Status(models.TextChoices):
-        PENDING = 'pending', 'Pending'
-        PROCESSING = 'processing', 'Processing'
-        ANSWERED = 'answered', 'Answered'
-        FAILED = 'failed', 'Failed'
+        PENDING     = 'pending',     'Pending'
+        PROCESSING  = 'processing',  'Processing'
+        ANSWERED    = 'answered',    'Answered'
+        AUDIO_READY = 'audio_ready', 'Audio Ready'
+        FAILED      = 'failed',      'Failed'
 
-    caller_number = models.CharField(max_length=64, db_index=True)
-    audio_file_path = models.CharField(max_length=512)
-    transcript_text = models.TextField(blank=True, null=True)
-    gpt_response_text = models.TextField(blank=True, null=True)
+    caller_number      = models.CharField(max_length=64, db_index=True)
+    audio_file_path    = models.CharField(max_length=512)
+    transcript_text    = models.TextField(blank=True, null=True)
+    gpt_response_text  = models.TextField(blank=True, null=True)
+    # Path to the TTS-generated WAV file Asterisk will play back
+    response_audio_path = models.CharField(max_length=512, blank=True, null=True)
     status = models.CharField(
         max_length=16,
         choices=Status.choices,
@@ -37,11 +40,12 @@ class CallRecord(TimeStampedModel):
 
 class CallEvent(models.Model):
     class EventType(models.TextChoices):
-        STARTED = 'started', 'Started'
+        STARTED     = 'started',     'Started'
         TRANSCRIBED = 'transcribed', 'Transcribed'
-        ANSWERED = 'answered', 'Answered'
-        FAILED = 'failed', 'Failed'
-        RETRY = 'retry', 'Retry'
+        ANSWERED    = 'answered',    'Answered'
+        TTS_DONE    = 'tts_done',    'TTS Done'
+        FAILED      = 'failed',      'Failed'
+        RETRY       = 'retry',       'Retry'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     call = models.ForeignKey(
@@ -51,7 +55,7 @@ class CallEvent(models.Model):
         db_index=True,
     )
     event_type = models.CharField(max_length=32, choices=EventType.choices, db_index=True)
-    payload = models.JSONField(default=dict, blank=True)
+    payload    = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
