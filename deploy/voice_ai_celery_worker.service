@@ -1,0 +1,26 @@
+[Unit]
+Description=Voice AI Agent — Celery worker
+Documentation=https://docs.celeryq.dev
+After=network.target redis.service postgresql.service
+Wants=redis.service postgresql.service
+
+[Service]
+Type=simple
+User=agent
+Group=agent
+WorkingDirectory=/home/agent/voice_ai_agent
+Environment="DJANGO_SETTINGS_MODULE=config.settings.production"
+
+ExecStart=/home/agent/voice_ai_agent/venv/bin/celery -A config worker \
+    --loglevel=info \
+    --concurrency=4
+
+Restart=always
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=voice_ai_celery_worker
+
+[Install]
+WantedBy=multi-user.target
