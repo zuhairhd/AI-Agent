@@ -1,0 +1,482 @@
+#!/usr/bin/env python3
+"""
+Future Smart Support — Asterisk AGI Conversation Controller
+============================================================
+This script is invoked by Asterisk via the AGI() dialplan application.
+It controls one complete inbound call session in a turn-based loop:
+
+  1. POST /api/session/start/  → get session_id  (always a real UUID)
+  2. Loop (up to MAX_TURNS):
+       a. Build deterministic recording path: <RECORDINGS_DIR>/<session_id>_turn<N>.wav
+       b. Record caller utterance into that exact path via RECORD FILE
+       c. Verify the file exists on disk and is non-empty before submitting
+       d. POST /api/session/<id>/turn/  with the verified path
+       e. Poll GET /api/turn-status/<turn_id>/  until ready / failed
+       f. Play response WAV (STREAM FILE via AGI)
+       g. If transfer=true → set TRANSFER_NEEDED=1 and exit loop
+  3. POST /api/session/<id>/end/
+  4. Branch in dialplan based on TRANSFER_NEEDED channel variable
+
+Recording filename contract
+---------------------------
+  Filename passed to RECORD FILE (no extension):
+      <RECORDINGS_DIR>/<session_id>_turn<N>
+  Asterisk appends the format extension automatically, producing:
+      <RECORDINGS_DIR>/<session_id>_turn<N>.wav
+  This exact path is what gets submitted to the backend.
+  session_id is always a real UUID — never 'unknown'.
+
+Configuration (environment variables):
+  DJANGO_API_BASE_URL      http://127.0.0.1:8000
+  ASTERISK_SECRET          shared secret header (optional)
+  MAX_CONVERSATION_TURNS   10
+  TURN_RECORD_TIMEOUT      30   (seconds total)
+  TURN_SILENCE_TIMEOUT     5    (seconds of silence before stop)
+  ASTERISK_RECORDINGS_DIR  /var/spool/asterisk/monitor
+  WELCOME_SOUND_NAME       welcome_future_smart
+
+Install location on server:
+  /var/lib/asterisk/agi-bin/voice_agent.agi  (must be executable: chmod +x)
+"""
+import os
+import sys
+import time
+import json
+import logging
+import urllib.request
+import urllib.error
+
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+
+API_BASE        = os.environ.get('DJANGO_API_BASE_URL', 'http://127.0.0.1:8000').rstrip('/')
+ASTERISK_SECRET = os.environ.get('ASTERISK_SECRET', '')
+MAX_TURNS       = int(os.environ.get('MAX_CONVERSATION_TURNS', '10'))
+RECORD_TIMEOUT  = int(os.environ.get('TURN_RECORD_TIMEOUT', '30'))
+SILENCE_TIMEOUT = int(os.environ.get('TURN_SILENCE_TIMEOUT', '5'))
+RECORDINGS_DIR  = os.environ.get('ASTERISK_RECORDINGS_DIR', '/var/spool/asterisk/monitor')
+
+# Minimum file size to consider a recording valid (bytes).
+# An empty or near-empty WAV from silence/timeout will be smaller.
+MIN_RECORDING_BYTES = 1024
+
+# Polling settings for turn-status
+POLL_INTERVAL = 1.5   # seconds between polls
+POLL_TIMEOUT  = 60    # max seconds to wait for STT+LLM+TTS to complete
+
+# ---------------------------------------------------------------------------
+# Logging — goes to stderr; Asterisk captures this in its verbose log
+# ---------------------------------------------------------------------------
+logging.basicConfig(
+    stream=sys.stderr,
+    level=logging.INFO,
+    format='[voice_agent.agi] %(levelname)s %(message)s',
+)
+log = logging.getLogger('voice_agent')
+
+
+# ---------------------------------------------------------------------------
+# AGI protocol helpers
+# ---------------------------------------------------------------------------
+
+def _send(cmd: str) -> str:
+    """Write one AGI command to stdout and read Asterisk's response."""
+    sys.stdout.write(cmd + '\n')
+    sys.stdout.flush()
+    response = sys.stdin.readline().strip()
+    log.debug(f"AGI >> {cmd!r}")
+    log.debug(f"AGI << {response!r}")
+    return response
+
+
+def _parse_result(response: str) -> str:
+    """Extract the numeric result value from '200 result=N [extra]'."""
+    if response.startswith('200'):
+        parts = response.split('=', 1)
+        if len(parts) == 2:
+            return parts[1].split()[0].strip()
+    return '-1'
+
+
+def agi_answer() -> None:
+    _send('ANSWER')
+
+
+def agi_hangup() -> None:
+    _send('HANGUP')
+
+
+def agi_set_variable(name: str, value: str) -> None:
+    _send(f'SET VARIABLE {name} {value}')
+
+
+def agi_stream_file(filename: str, escape_digits: str = '') -> str:
+    """
+    Play a sound file (path WITHOUT extension).
+    Returns the DTMF digit pressed during playback, or '' if none.
+    """
+    resp = _send(f'STREAM FILE {filename} "{escape_digits}"')
+    result = _parse_result(resp)
+    if result.lstrip('-').isdigit() and int(result) > 0:
+        return chr(int(result))
+    return ''
+
+
+def agi_record_file(
+    filename_no_ext: str,
+    fmt: str = 'wav',
+    escape_digits: str = '#',
+    timeout_ms: int = 30000,
+    silence_s: int = 5,
+) -> str:
+    """
+    Record caller audio into <filename_no_ext>.<fmt>.
+    Asterisk appends the extension — do NOT include it in filename_no_ext.
+
+    Result codes:
+        '0'  — stopped by escape digit
+        '1'  — stopped by silence / total timeout (normal end of speech)
+        '-1' — channel error
+    """
+    cmd = (
+        f'RECORD FILE {filename_no_ext} {fmt} "{escape_digits}" '
+        f'{timeout_ms} s={silence_s}'
+    )
+    resp = _send(cmd)
+    return _parse_result(resp)
+
+
+def agi_exec(app: str, options: str = '') -> str:
+    resp = _send(f'EXEC {app} {options}')
+    return _parse_result(resp)
+
+
+def agi_verbose(message: str, level: int = 1) -> None:
+    """
+    Emit an AGI VERBOSE command so the message appears in:
+      - 'asterisk -rvvv' console output
+      - /var/log/asterisk/full (at matching verbosity)
+    Level 1 = always shown; higher levels require more -v flags.
+    Double-quotes inside the message are escaped automatically.
+    Python logging (stderr) is kept alongside this for dual-channel visibility.
+    """
+    safe = message.replace('"', '\\"')
+    _send(f'VERBOSE "{safe}" {level}')
+
+
+# ---------------------------------------------------------------------------
+# Django API helpers
+# ---------------------------------------------------------------------------
+
+def _api_headers() -> dict:
+    headers = {'Content-Type': 'application/json'}
+    if ASTERISK_SECRET:
+        headers['X-Asterisk-Secret'] = ASTERISK_SECRET
+    return headers
+
+
+def _post(path: str, payload: dict) -> dict:
+    url = f"{API_BASE}{path}"
+    body = json.dumps(payload).encode()
+    req = urllib.request.Request(url, data=body, headers=_api_headers(), method='POST')
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as exc:
+        log.error(f"POST {path} → HTTP {exc.code}: {exc.read()}")
+        raise
+    except Exception as exc:
+        log.error(f"POST {path} failed: {exc}")
+        raise
+
+
+def _get(path: str) -> dict:
+    url = f"{API_BASE}{path}"
+    req = urllib.request.Request(url, headers=_api_headers(), method='GET')
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as exc:
+        log.error(f"GET {path} → HTTP {exc.code}: {exc.read()}")
+        raise
+    except Exception as exc:
+        log.error(f"GET {path} failed: {exc}")
+        raise
+
+
+def poll_turn_status(turn_id: str) -> dict:
+    """Poll /api/turn-status/<turn_id>/ until the turn is ready or failed."""
+    deadline = time.time() + POLL_TIMEOUT
+    while time.time() < deadline:
+        try:
+            data = _get(f'/api/turn-status/{turn_id}/')
+            if data.get('status') in ('ready', 'failed'):
+                return data
+        except Exception:
+            pass  # transient — keep polling
+        time.sleep(POLL_INTERVAL)
+    log.warning(f"Turn {turn_id} timed out after {POLL_TIMEOUT}s")
+    return {'status': 'timeout', 'has_audio': False, 'transfer': False}
+
+
+# ---------------------------------------------------------------------------
+# AGI environment reader
+# ---------------------------------------------------------------------------
+
+def read_agi_env() -> dict:
+    """
+    Asterisk sends 'key: value' lines followed by a blank line at startup.
+    """
+    env = {}
+    while True:
+        line = sys.stdin.readline().strip()
+        if not line:
+            break
+        if ':' in line:
+            key, _, val = line.partition(':')
+            env[key.strip()] = val.strip()
+    return env
+
+
+# ---------------------------------------------------------------------------
+# Recording path helpers
+# ---------------------------------------------------------------------------
+
+def _build_recording_paths(session_id: str, turn_num: int) -> tuple:
+    """
+    Return (path_without_extension, full_path_with_wav_extension).
+
+    Filename: <session_id>_turn<N>
+    session_id is always a real UUID from the backend — never 'unknown'.
+    Asterisk writes:  <RECORDINGS_DIR>/<session_id>_turn<N>.wav
+    Backend receives: <RECORDINGS_DIR>/<session_id>_turn<N>.wav
+    """
+    basename    = f"{session_id}_turn{turn_num}"
+    path_no_ext = os.path.join(RECORDINGS_DIR, basename)
+    full_path   = f"{path_no_ext}.wav"
+    return path_no_ext, full_path
+
+
+def _verify_recording(full_path: str, turn_num: int) -> tuple:
+    """
+    Confirm the recording file exists and is large enough to be real audio.
+    Returns (ok: bool, size_bytes: int).
+    """
+    exists = os.path.isfile(full_path)
+    size   = os.path.getsize(full_path) if exists else 0
+
+    log.info(
+        f"Recording audit | turn={turn_num} "
+        f"path={full_path!r} exists={exists} size={size}B"
+    )
+
+    if not exists:
+        log.error(f"Recording file missing after RECORD FILE | path={full_path!r}")
+        return False, 0
+
+    if size < MIN_RECORDING_BYTES:
+        log.warning(
+            f"Recording too small ({size}B < {MIN_RECORDING_BYTES}B) — "
+            f"likely empty or silence only | path={full_path!r}"
+        )
+        return False, size
+
+    return True, size
+
+
+# ---------------------------------------------------------------------------
+# Main entry point
+# ---------------------------------------------------------------------------
+
+def main():
+    agi_env       = read_agi_env()
+    caller_number = agi_env.get('agi_callerid', 'unknown')
+    unique_id     = agi_env.get('agi_uniqueid', 'unknown')
+
+    log.info(f"Call start | caller={caller_number} uniqueid={unique_id}")
+    agi_verbose(f"[voice_agent] CALL START caller={caller_number} uniqueid={unique_id}")
+
+    # ── Answer the call ────────────────────────────────────────────────────
+    agi_answer()
+
+    # ── Start a Django session — gives us a guaranteed real UUID ───────────
+    # session_id is used for ALL filenames; never rely on agi_uniqueid
+    # which can be 'unknown' when channel variables are not populated.
+    try:
+        sess_data  = _post('/api/session/start/', {'caller_number': caller_number})
+        session_id = sess_data['session_id']
+    except Exception as exc:
+        log.error(f"Failed to start session: {exc}")
+        agi_verbose(f"[voice_agent] SESSION START FAILED caller={caller_number} error={exc}", level=1)
+        agi_hangup()
+        return
+
+    log.info(f"Session started | session_id={session_id}")
+    agi_verbose(f"[voice_agent] SESSION STARTED session_id={session_id} caller={caller_number}")
+
+    # ── Ensure recordings directory exists ─────────────────────────────────
+    try:
+        os.makedirs(RECORDINGS_DIR, exist_ok=True)
+    except OSError as exc:
+        log.warning(f"Could not create RECORDINGS_DIR {RECORDINGS_DIR!r}: {exc}")
+
+    # ── Play welcome message ───────────────────────────────────────────────
+    welcome_sound = os.environ.get('WELCOME_SOUND_NAME', 'welcome_future_smart')
+    log.info(f"Playing welcome | sound=custom/{welcome_sound}")
+    agi_verbose(f"[voice_agent] WELCOME START sound=custom/{welcome_sound}")
+    agi_stream_file(f'custom/{welcome_sound}')
+    log.info("Welcome message played.")
+    agi_verbose("[voice_agent] WELCOME END")
+
+    # ── Conversation loop ──────────────────────────────────────────────────
+    transfer_needed = False
+    transfer_reason = ''
+    final_status    = 'completed'
+
+    for turn_num in range(1, MAX_TURNS + 1):
+        log.info(f"--- Turn {turn_num} start | session={session_id} ---")
+        agi_verbose(f"[voice_agent] TURN START turn={turn_num} session={session_id}")
+
+        # Build the recording paths from session_id (always a real UUID)
+        path_no_ext, recorded_path = _build_recording_paths(session_id, turn_num)
+
+        log.info(
+            f"Recording plan | turn={turn_num} "
+            f"arg_to_record_file={path_no_ext!r} "
+            f"expected_file={recorded_path!r}"
+        )
+        agi_verbose(f"[voice_agent] RECORDING PLAN turn={turn_num} file={recorded_path}")
+
+        # ── Record caller utterance ────────────────────────────────────────
+        rec_result = agi_record_file(
+            filename_no_ext=path_no_ext,
+            fmt='wav',
+            timeout_ms=RECORD_TIMEOUT * 1000,
+            silence_s=SILENCE_TIMEOUT,
+        )
+        log.info(f"RECORD FILE result={rec_result} | turn={turn_num}")
+        agi_verbose(f"[voice_agent] RECORD FILE DONE turn={turn_num} result={rec_result}")
+
+        # ── Verify file exists and is non-empty before submitting ──────────
+        file_ok, file_size = _verify_recording(recorded_path, turn_num)
+        agi_verbose(
+            f"[voice_agent] RECORDING AUDIT turn={turn_num} "
+            f"exists={file_ok} size={file_size}B path={recorded_path}"
+        )
+
+        if not file_ok:
+            log.error(
+                f"Skipping turn — recording invalid | "
+                f"turn={turn_num} path={recorded_path!r} size={file_size}B"
+            )
+            agi_verbose(
+                f"[voice_agent] RECORDING INVALID SKIP turn={turn_num} "
+                f"size={file_size}B path={recorded_path}",
+                level=1,
+            )
+            # Play apology and let the caller try again on the next turn
+            agi_exec('Playback', 'vm-sorry')
+            continue   # do NOT submit to backend
+
+        log.info(
+            f"Submitting turn | turn={turn_num} "
+            f"path={recorded_path!r} size={file_size}B"
+        )
+        agi_verbose(
+            f"[voice_agent] TURN SUBMIT turn={turn_num} "
+            f"size={file_size}B path={recorded_path}"
+        )
+
+        # ── Submit turn to Django ──────────────────────────────────────────
+        try:
+            turn_data = _post(
+                f'/api/session/{session_id}/turn/',
+                {'audio_file_path': recorded_path},
+            )
+            turn_id = turn_data['turn_id']
+        except Exception as exc:
+            log.error(f"submit_turn failed | turn={turn_num}: {exc}")
+            agi_verbose(f"[voice_agent] TURN SUBMIT FAILED turn={turn_num} error={exc}", level=1)
+            agi_exec('Playback', 'vm-sorry')
+            final_status = 'failed'
+            break
+
+        log.info(f"Turn submitted | turn_id={turn_id} turn_number={turn_num}")
+        agi_verbose(f"[voice_agent] TURN SUBMITTED turn_id={turn_id} turn_number={turn_num}")
+
+        # ── Poll for processing result (STT → LLM → TTS) ──────────────────
+        turn_result = poll_turn_status(turn_id)
+        log.info(
+            f"Turn result | turn_id={turn_id} "
+            f"status={turn_result.get('status')} "
+            f"has_audio={turn_result.get('has_audio')} "
+            f"transfer={turn_result.get('transfer')}"
+        )
+        agi_verbose(
+            f"[voice_agent] TURN RESULT turn_id={turn_id} "
+            f"status={turn_result.get('status')} "
+            f"has_audio={turn_result.get('has_audio')} "
+            f"transfer={turn_result.get('transfer')}"
+        )
+
+        # ── Transfer path ──────────────────────────────────────────────────
+        if turn_result.get('transfer'):
+            transfer_needed = True
+            transfer_reason = turn_result.get('transfer_reason', '')
+            log.info(f"Transfer triggered | reason={transfer_reason}")
+            agi_verbose(
+                f"[voice_agent] TRANSFER TRIGGERED turn={turn_num} "
+                f"reason={transfer_reason}",
+                level=1,
+            )
+            # Play handoff reply only when audio is confirmed on disk
+            if turn_result.get('has_audio') and turn_result.get('audio_response_path'):
+                sound_path = turn_result['audio_response_path'].rsplit('.', 1)[0]
+                agi_stream_file(sound_path)
+            break
+
+        # ── Normal reply playback ──────────────────────────────────────────
+        if turn_result.get('has_audio') and turn_result.get('audio_response_path'):
+            sound_path = turn_result['audio_response_path'].rsplit('.', 1)[0]
+            agi_stream_file(sound_path)
+        elif turn_result.get('status') in ('failed', 'timeout'):
+            log.warning(
+                f"Turn ended with status={turn_result.get('status')} | "
+                f"turn_id={turn_id}"
+            )
+            agi_exec('Playback', 'vm-sorry')
+
+    else:
+        # for-loop completed all MAX_TURNS without a break
+        log.info(f"Max turns ({MAX_TURNS}) reached | session={session_id}")
+        agi_exec('Playback', 'vm-goodbye')
+
+    # ── End the session ────────────────────────────────────────────────────
+    try:
+        end_status = 'transferred' if transfer_needed else final_status
+        _post(
+            f'/api/session/{session_id}/end/',
+            {'status': end_status},
+        )
+        agi_verbose(f"[voice_agent] SESSION END session={session_id} status={end_status}")
+    except Exception as exc:
+        log.warning(f"session_end failed (non-critical): {exc}")
+        agi_verbose(f"[voice_agent] SESSION END FAILED session={session_id} error={exc}", level=1)
+
+    # ── Signal transfer decision back to the dialplan ──────────────────────
+    if transfer_needed:
+        agi_set_variable('TRANSFER_NEEDED', '1')
+        log.info("TRANSFER_NEEDED=1 set on channel.")
+        agi_verbose("[voice_agent] TRANSFER_NEEDED=1 set on channel")
+    else:
+        agi_set_variable('TRANSFER_NEEDED', '0')
+
+    log.info(f"AGI done | session={session_id} transfer={transfer_needed}")
+    agi_verbose(
+        f"[voice_agent] AGI DONE session={session_id} transfer={transfer_needed}"
+    )
+
+
+#if __name__ == '__main__':
+main()
