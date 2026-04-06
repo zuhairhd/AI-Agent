@@ -106,8 +106,20 @@ CELERY_TASK_SOFT_TIME_LIMIT = 270
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
 OPENAI_VECTOR_STORE_ID = os.environ.get('OPENAI_VECTOR_STORE_ID', '')
 
-# Asterisk
-ASTERISK_SECRET = os.environ.get('ASTERISK_SECRET', '')
+# Asterisk / call-centre
+ASTERISK_SECRET            = os.environ.get('ASTERISK_SECRET', '')
+COMPANY_NAME               = os.environ.get('COMPANY_NAME', 'Future Smart Support')
+HUMAN_TRANSFER_EXTENSION   = os.environ.get('HUMAN_TRANSFER_EXTENSION', '200')
+MAX_CONVERSATION_TURNS     = int(os.environ.get('MAX_CONVERSATION_TURNS', '10'))
+TURN_RECORD_TIMEOUT        = int(os.environ.get('TURN_RECORD_TIMEOUT', '30'))
+TURN_SILENCE_TIMEOUT       = int(os.environ.get('TURN_SILENCE_TIMEOUT', '5'))
+DJANGO_API_BASE_URL        = os.environ.get('DJANGO_API_BASE_URL', 'http://127.0.0.1:8000')
+ASTERISK_SOUNDS_DIR        = os.environ.get('ASTERISK_SOUNDS_DIR', '/var/lib/asterisk/sounds/custom')
+WELCOME_SOUND_NAME         = os.environ.get('WELCOME_SOUND_NAME', 'welcome_future_smart')
+CALL_RESPONSES_ROOT        = os.environ.get(
+    'CALL_RESPONSES_ROOT',
+    str(BASE_DIR / 'media' / 'call_responses'),
+)
 
 # Logging
 LOG_FILE = os.environ.get('LOG_FILE', str(BASE_DIR / 'logs' / 'app.log'))

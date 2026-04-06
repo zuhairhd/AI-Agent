@@ -5,17 +5,19 @@ Future Smart Support — Asterisk AGI Conversation Controller
 This script is invoked by Asterisk via the AGI() dialplan application.
 It controls one complete inbound call session in a turn-based loop:
 
-  1. POST /api/session/start/  → get session_id  (always a real UUID)
-  2. Loop (up to MAX_TURNS):
+  1. Read LANG_CHOICE channel variable set by the [lang-select] dialplan context.
+  2. POST /api/session/start/  → get session_id  (always a real UUID)
+  3. Loop (up to MAX_TURNS):
        a. Build deterministic recording path: <RECORDINGS_DIR>/<session_id>_turn<N>.wav
        b. Record caller utterance into that exact path via RECORD FILE
-       c. Verify the file exists on disk and is non-empty before submitting
-       d. POST /api/session/<id>/turn/  with the verified path
-       e. Poll GET /api/turn-status/<turn_id>/  until ready / failed
-       f. Play response WAV (STREAM FILE via AGI)
-       g. If transfer=true → set TRANSFER_NEEDED=1 and exit loop
-  3. POST /api/session/<id>/end/
-  4. Branch in dialplan based on TRANSFER_NEEDED channel variable
+       c. Verify the file exists on disk and is non-empty
+       d. Play language-appropriate WAIT PROMPT (before backend call — eliminates silence)
+       e. POST /api/session/<id>/turn/  with the verified path + language
+       f. Poll GET /api/turn-status/<turn_id>/  until ready / failed
+       g. Play response WAV (STREAM FILE via AGI)
+       h. If transfer=true → set TRANSFER_NEEDED=1 and exit loop
+  4. POST /api/session/<id>/end/
+  5. Branch in dialplan based on TRANSFER_NEEDED channel variable
 
 Recording filename contract
 ---------------------------
@@ -25,6 +27,13 @@ Recording filename contract
       <RECORDINGS_DIR>/<session_id>_turn<N>.wav
   This exact path is what gets submitted to the backend.
   session_id is always a real UUID — never 'unknown'.
+
+Wait prompt placement
+---------------------
+  The wait prompt is played AFTER recording verification and BEFORE the HTTP
+  POST to the backend. This ensures the caller hears something immediately
+  after speaking, with zero silence gap while the network round-trip and
+  STT/LLM/TTS pipeline runs.
 
 Configuration (environment variables):
   DJANGO_API_BASE_URL      http://127.0.0.1:8000
@@ -58,12 +67,24 @@ SILENCE_TIMEOUT = int(os.environ.get('TURN_SILENCE_TIMEOUT', '5'))
 RECORDINGS_DIR  = os.environ.get('ASTERISK_RECORDINGS_DIR', '/var/spool/asterisk/monitor')
 
 # Minimum file size to consider a recording valid (bytes).
-# An empty or near-empty WAV from silence/timeout will be smaller.
 MIN_RECORDING_BYTES = 1024
 
 # Polling settings for turn-status
-POLL_INTERVAL = 1.5   # seconds between polls
+# 0.3s keeps perceived silence short without hammering the backend.
+POLL_INTERVAL = 0.3   # seconds between polls
 POLL_TIMEOUT  = 60    # max seconds to wait for STT+LLM+TTS to complete
+
+# Ask prompts — played once (turn 1 only) to invite the caller to speak
+ASK_PROMPT = {
+    'ar': 'custom/please_ask_ar',   # "يرجى توضيح مشكلتك الآن."
+    'en': 'custom/please_ask_en',   # "Please tell me your issue now."
+}
+
+# Wait prompts — played once after recording ends, before backend submission
+WAIT_PROMPT = {
+    'ar': 'custom/please_wait_ar',  # "لحظة من فضلك."
+    'en': 'custom/please_wait_en',  # "Just a moment, please."
+}
 
 # ---------------------------------------------------------------------------
 # Logging — goes to stderr; Asterisk captures this in its verbose log
@@ -109,6 +130,19 @@ def agi_hangup() -> None:
 
 def agi_set_variable(name: str, value: str) -> None:
     _send(f'SET VARIABLE {name} {value}')
+
+
+def agi_get_variable(name: str) -> str:
+    """
+    Retrieve a channel variable set by the dialplan (e.g. LANG_CHOICE).
+    Returns the value string, or '' if the variable is unset.
+    Response format: '200 result=1 (value)'
+    """
+    resp = _send(f'GET VARIABLE {name}')
+    # result=1 means the variable exists; result=0 means it does not
+    if '(' in resp and ')' in resp:
+        return resp.split('(', 1)[1].rstrip(')')
+    return ''
 
 
 def agi_stream_file(filename: str, escape_digits: str = '') -> str:
@@ -297,14 +331,27 @@ def main():
     log.info(f"Call start | caller={caller_number} uniqueid={unique_id}")
     agi_verbose(f"[voice_agent] CALL START caller={caller_number} uniqueid={unique_id}")
 
-    # ── Answer the call ────────────────────────────────────────────────────
+    # ── Read language chosen in dialplan [lang-select] ─────────────────────
+    # LANG_CHOICE is set as a channel variable by extensions.conf before AGI
+    # is invoked. GET VARIABLE reads it back into Python here.
+    lang_raw = agi_get_variable('LANG_CHOICE').strip().lower()
+    language  = lang_raw if lang_raw in ('ar', 'en') else 'en'
+
+    log.info(f"Selected language | raw={lang_raw!r} resolved={language}")
+    agi_verbose(f"[voice_agent] LANGUAGE SELECTED lang={language} (raw={lang_raw!r})")
+
+    wait_prompt = WAIT_PROMPT.get(language, WAIT_PROMPT['en'])
+
+    # ── Answer the call (no-op if already answered by lang-select) ─────────
     agi_answer()
 
     # ── Start a Django session — gives us a guaranteed real UUID ───────────
-    # session_id is used for ALL filenames; never rely on agi_uniqueid
-    # which can be 'unknown' when channel variables are not populated.
+    # session_id is used for ALL filenames; never rely on agi_uniqueid.
     try:
-        sess_data  = _post('/api/session/start/', {'caller_number': caller_number})
+        sess_data  = _post('/api/session/start/', {
+            'caller_number': caller_number,
+            'language':      language,
+        })
         session_id = sess_data['session_id']
     except Exception as exc:
         log.error(f"Failed to start session: {exc}")
@@ -312,8 +359,8 @@ def main():
         agi_hangup()
         return
 
-    log.info(f"Session started | session_id={session_id}")
-    agi_verbose(f"[voice_agent] SESSION STARTED session_id={session_id} caller={caller_number}")
+    log.info(f"Session started | session_id={session_id} language={language}")
+    agi_verbose(f"[voice_agent] SESSION STARTED session_id={session_id} lang={language}")
 
     # ── Ensure recordings directory exists ─────────────────────────────────
     try:
@@ -321,13 +368,9 @@ def main():
     except OSError as exc:
         log.warning(f"Could not create RECORDINGS_DIR {RECORDINGS_DIR!r}: {exc}")
 
-    # ── Play welcome message ───────────────────────────────────────────────
-    welcome_sound = os.environ.get('WELCOME_SOUND_NAME', 'welcome_future_smart')
-    log.info(f"Playing welcome | sound=custom/{welcome_sound}")
-    agi_verbose(f"[voice_agent] WELCOME START sound=custom/{welcome_sound}")
-    agi_stream_file(f'custom/{welcome_sound}')
-    log.info("Welcome message played.")
-    agi_verbose("[voice_agent] WELCOME END")
+    # NOTE: No welcome message played here.
+    # The [lang-select] language menu is the sole greeting the caller hears.
+    # Removing this extra playback eliminates ~5-8s of startup delay.
 
     # ── Conversation loop ──────────────────────────────────────────────────
     transfer_needed = False
@@ -335,8 +378,8 @@ def main():
     final_status    = 'completed'
 
     for turn_num in range(1, MAX_TURNS + 1):
-        log.info(f"--- Turn {turn_num} start | session={session_id} ---")
-        agi_verbose(f"[voice_agent] TURN START turn={turn_num} session={session_id}")
+        log.info(f"--- Turn {turn_num} start | session={session_id} lang={language} ---")
+        agi_verbose(f"[voice_agent] TURN START turn={turn_num} session={session_id} lang={language}")
 
         # Build the recording paths from session_id (always a real UUID)
         path_no_ext, recorded_path = _build_recording_paths(session_id, turn_num)
@@ -347,6 +390,18 @@ def main():
             f"expected_file={recorded_path!r}"
         )
         agi_verbose(f"[voice_agent] RECORDING PLAN turn={turn_num} file={recorded_path}")
+
+        # ── Ask prompt (turn 1 only) ───────────────────────────────────────
+        # On the first turn the caller has just selected a language and has
+        # not yet heard any instruction.  Play the short ask prompt in the
+        # selected language before opening the recording channel.
+        # On subsequent turns the AI response already guides the conversation,
+        # so no extra prompt is needed.
+        if turn_num == 1:
+            ask_sound = ASK_PROMPT.get(language, ASK_PROMPT['en'])
+            log.info(f"Playing ask prompt | lang={language} sound={ask_sound}")
+            agi_verbose(f"[voice_agent] ASK PROMPT turn={turn_num} sound={ask_sound}")
+            agi_stream_file(ask_sound)
 
         # ── Record caller utterance ────────────────────────────────────────
         rec_result = agi_record_file(
@@ -379,9 +434,17 @@ def main():
             agi_exec('Playback', 'vm-sorry')
             continue   # do NOT submit to backend
 
+        # ── Play wait prompt immediately — eliminates silence gap ──────────
+        # This plays BEFORE the backend HTTP call so the caller hears audio
+        # while STT + LLM + TTS pipeline runs in the background.
+        log.info(f"Playing wait prompt | lang={language} sound={wait_prompt}")
+        agi_verbose(f"[voice_agent] WAIT PROMPT START lang={language} sound={wait_prompt}")
+        agi_stream_file(wait_prompt)
+        agi_verbose(f"[voice_agent] WAIT PROMPT END")
+
         log.info(
             f"Submitting turn | turn={turn_num} "
-            f"path={recorded_path!r} size={file_size}B"
+            f"path={recorded_path!r} size={file_size}B lang={language}"
         )
         agi_verbose(
             f"[voice_agent] TURN SUBMIT turn={turn_num} "
@@ -448,9 +511,11 @@ def main():
             agi_exec('Playback', 'vm-sorry')
 
     else:
-        # for-loop completed all MAX_TURNS without a break
+        # for-loop completed all MAX_TURNS without a break.
+        # The dialplan plays vm-goodbye after AGI exits — do NOT play it here
+        # or the caller hears it twice.
         log.info(f"Max turns ({MAX_TURNS}) reached | session={session_id}")
-        agi_exec('Playback', 'vm-goodbye')
+        agi_verbose(f"[voice_agent] MAX TURNS REACHED session={session_id}")
 
     # ── End the session ────────────────────────────────────────────────────
     try:
@@ -472,9 +537,9 @@ def main():
     else:
         agi_set_variable('TRANSFER_NEEDED', '0')
 
-    log.info(f"AGI done | session={session_id} transfer={transfer_needed}")
+    log.info(f"AGI done | session={session_id} lang={language} transfer={transfer_needed}")
     agi_verbose(
-        f"[voice_agent] AGI DONE session={session_id} transfer={transfer_needed}"
+        f"[voice_agent] AGI DONE session={session_id} lang={language} transfer={transfer_needed}"
     )
 
 

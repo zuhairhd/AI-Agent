@@ -120,19 +120,21 @@ def _convert_with_stdlib(mp3_data: bytes, dest_path: str) -> None:
 # Public API
 # ---------------------------------------------------------------------------
 
-def synthesise(text: str, call_id: str) -> str:
+def synthesise(text: str, call_id: str = '', turn_id: str = '') -> str:
     """
     Convert answer text to an Asterisk-compatible WAV file.
 
     Args:
         text:    The answer text to synthesise (from RAG / GPT response).
-        call_id: Used as the output filename: <call_id>.wav
+        call_id: Legacy single-turn identifier → filename <call_id>.wav
+        turn_id: Multi-turn identifier (preferred) → filename <turn_id>.wav
+                 If both are supplied, turn_id takes precedence.
 
     Returns:
         Absolute path to the saved WAV file.
 
     Raises:
-        ValueError:          If text is empty.
+        ValueError:          If text is empty or no id provided.
         openai.OpenAIError:  On API failures (let Celery retry).
         OSError:             If the output directory cannot be written.
     """
@@ -140,11 +142,15 @@ def synthesise(text: str, call_id: str) -> str:
     if not text:
         raise ValueError("synthesise() called with empty text — nothing to convert.")
 
+    file_id = turn_id or call_id
+    if not file_id:
+        raise ValueError("synthesise() requires either turn_id or call_id.")
+
     responses_dir = _get_responses_dir()
-    dest_path = os.path.join(responses_dir, f"{call_id}.wav")
+    dest_path = os.path.join(responses_dir, f"{file_id}.wav")
 
     logger.info(
-        f"TTS started | call={call_id} | "
+        f"TTS started | id={file_id} | "
         f"text_len={len(text)} | dest={dest_path}"
     )
 
@@ -153,8 +159,8 @@ def synthesise(text: str, call_id: str) -> str:
     # Request raw PCM from OpenAI (24 kHz, mono, 16-bit little-endian).
     # Using 'pcm' avoids any MP3 decoding and keeps the stdlib path fast.
     response = client.audio.speech.create(
-        model='tts-1',          # tts-1-hd for higher quality if latency permits
-        voice='alloy',          # neutral voice; change to 'nova', 'shimmer', etc.
+        model='tts-1-hd',          # tts-1-hd for higher quality if latency permits
+        voice='nova',          # neutral voice; change to 'nova', 'shimmer', etc.
         input=text,
         response_format='pcm',  # raw signed 16-bit PCM at 24 000 Hz
     )
@@ -167,7 +173,7 @@ def synthesise(text: str, call_id: str) -> str:
 
     file_size = os.path.getsize(dest_path)
     logger.info(
-        f"TTS completed | call={call_id} | "
+        f"TTS completed | id={file_id} | "
         f"output={dest_path} | size={file_size} bytes | "
         f"format=WAV PCM 8kHz mono 16-bit (Asterisk-ready)"
     )
