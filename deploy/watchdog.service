@@ -1,0 +1,17 @@
+[Unit]
+Description=Voice AI Agent — Watchdog Document Monitor
+After=network.target redis.service postgresql.service
+
+[Service]
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/voice_ai_agent
+Environment="DJANGO_SETTINGS_MODULE=config.settings.production"
+ExecStart=/opt/voice_ai_agent/venv/bin/python watchdog_runner/watcher.py
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/voice_ai_agent/watchdog.log
+StandardError=append:/var/log/voice_ai_agent/watchdog.log
+
+[Install]
+WantedBy=multi-user.target

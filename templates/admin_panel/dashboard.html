@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voice AI Agent — Control Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #1a1a24;
+    --border: #222232;
+    --teal: #00e5cc;
+    --teal-dim: rgba(0,229,204,0.12);
+    --teal-glow: rgba(0,229,204,0.25);
+    --amber: #f59e0b;
+    --green: #10b981;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --font-head: 'Syne', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 14px; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-mono);
+    min-height: 100vh;
+    display: flex;
+  }
+  /* SIDEBAR */
+  .sidebar {
+    width: 220px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    height: 100vh;
+    z-index: 10;
+  }
+  .sidebar-logo {
+    padding: 24px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-logo h1 {
+    font-family: var(--font-head);
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--teal);
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+  .sidebar-logo span {
+    font-size: 0.7rem;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-weight: 400;
+  }
+  .sidebar-nav { padding: 16px 0; flex: 1; }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border-left: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  .nav-item:hover, .nav-item.active {
+    color: var(--teal);
+    border-left-color: var(--teal);
+    background: var(--teal-dim);
+  }
+  .nav-icon { font-size: 1rem; width: 18px; text-align: center; }
+  .sidebar-footer {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+    font-size: 0.7rem;
+    color: var(--muted);
+  }
+  /* MAIN */
+  .main {
+    margin-left: 220px;
+    flex: 1;
+    padding: 32px;
+    max-width: 1200px;
+  }
+  .page-header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .page-header h2 {
+    font-family: var(--font-head);
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -0.03em;
+  }
+  .page-header .subtitle {
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-family: var(--font-mono);
+  }
+  /* STAT CARDS */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--teal);
+  }
+  .stat-card.amber::before { background: var(--amber); }
+  .stat-card.green::before { background: var(--green); }
+  .stat-card.red::before   { background: var(--red);   }
+  .stat-card.blue::before  { background: var(--blue);  }
+  .stat-label {
+    font-size: 0.68rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+  .stat-value {
+    font-family: var(--font-head);
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: var(--teal);
+    letter-spacing: -0.04em;
+    line-height: 1;
+  }
+  .stat-card.amber .stat-value { color: var(--amber); }
+  .stat-card.green .stat-value { color: var(--green); }
+  .stat-card.red   .stat-value { color: var(--red);   }
+  .stat-card.blue  .stat-value { color: var(--blue);  }
+  /* SECTION */
+  .section { margin-bottom: 32px; }
+  .section-title {
+    font-family: var(--font-head);
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  /* TABLE */
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { border-bottom: 1px solid var(--border); }
+  th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  td {
+    padding: 12px 16px;
+    font-size: 0.8rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:nth-child(even) { background: rgba(255,255,255,0.015); }
+  tbody tr:hover { background: var(--teal-dim); }
+  /* BADGE */
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 100px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .badge-pending    { background: rgba(245,158,11,0.15); color: var(--amber); }
+  .badge-processing { background: rgba(59,130,246,0.15); color: var(--blue); }
+  .badge-answered   { background: rgba(16,185,129,0.15); color: var(--green); }
+  .badge-failed     { background: rgba(239,68,68,0.15);  color: var(--red); }
+  .badge-indexed    { background: rgba(16,185,129,0.15); color: var(--green); }
+  /* DOC PANEL */
+  .doc-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .doc-row:last-child { border-bottom: none; }
+  .doc-name {
+    font-size: 0.8rem;
+    color: var(--text);
+    font-family: var(--font-mono);
+  }
+  .doc-meta { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+  /* LINKS */
+  a { color: var(--teal); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .admin-link {
+    font-size: 0.72rem;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 12px;
+    transition: all 0.15s;
+  }
+  .admin-link:hover {
+    color: var(--teal);
+    border-color: var(--teal);
+    background: var(--teal-dim);
+    text-decoration: none;
+  }
+  /* TWO COL */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+  /* PULSE DOT */
+  .pulse {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 0 0 rgba(16,185,129,0.4);
+    animation: pulse 2s infinite;
+    margin-right: 6px;
+  }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(16,185,129,0.4); }
+    70%  { box-shadow: 0 0 0 8px rgba(16,185,129,0); }
+    100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+  }
+  /* EMPTY */
+  .empty { padding: 32px; text-align: center; color: var(--muted); font-size: 0.8rem; }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <h1>Voice AI<br>Agent</h1>
+    <span>Control Panel</span>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="/api/admin/dashboard/" class="nav-item active">
+      <span class="nav-icon">&#9672;</span> Dashboard
+    </a>
+    <a href="/admin/voice_calls/callrecord/" class="nav-item">
+      <span class="nav-icon">&#9678;</span> Call Records
+    </a>
+    <a href="/admin/voice_calls/callevent/" class="nav-item">
+      <span class="nav-icon">&#9671;</span> Call Events
+    </a>
+    <a href="/admin/rag_sync/knowledgedocument/" class="nav-item">
+      <span class="nav-icon">&#9681;</span> Documents
+    </a>
+    <a href="/admin/" class="nav-item">
+      <span class="nav-icon">&#8862;</span> Django Admin
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <span class="pulse"></span> System Active
+  </div>
+</aside>
+
+<main class="main">
+  <div class="page-header">
+    <h2>Dashboard</h2>
+    <span class="subtitle">Real-time overview</span>
+  </div>
+
+  <!-- STAT CARDS -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Calls Today</div>
+      <div class="stat-value">{{ total_today }}</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="stat-label">Calls This Week</div>
+      <div class="stat-value">{{ total_week }}</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-label">Docs Indexed</div>
+      <div class="stat-value">{{ docs_indexed }}</div>
+    </div>
+    <div class="stat-card amber">
+      <div class="stat-label">Docs Pending</div>
+      <div class="stat-value">{{ docs_pending }}</div>
+    </div>
+    <div class="stat-card red">
+      <div class="stat-label">Failed</div>
+      <div class="stat-value">{{ status_data_raw.failed|default:"0" }}</div>
+    </div>
+  </div>
+
+  <div class="two-col">
+
+    <!-- RECENT CALLS -->
+    <div class="section">
+      <div class="section-title">
+        Recent Calls
+        <a href="/admin/voice_calls/callrecord/" class="admin-link">View all</a>
+      </div>
+      <div class="table-wrap">
+        {% if recent_calls %}
+        <table>
+          <thead>
+            <tr>
+              <th>Number</th>
+              <th>Status</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for call in recent_calls %}
+            <tr>
+              <td>
+                <a href="/admin/voice_calls/callrecord/{{ call.id }}/change/">
+                  {{ call.caller_number }}
+                </a>
+              </td>
+              <td><span class="badge badge-{{ call.status }}">{{ call.status }}</span></td>
+              <td style="color:var(--muted);font-size:0.75rem;">{{ call.created_at|date:"M d H:i" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="empty">No calls recorded yet.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- RECENT FAILURES -->
+    <div class="section">
+      <div class="section-title">
+        Failed Calls
+        <a href="/admin/voice_calls/callrecord/?status__exact=failed" class="admin-link">View all</a>
+      </div>
+      <div class="table-wrap">
+        {% if recent_failures %}
+        <table>
+          <thead>
+            <tr>
+              <th>Number</th>
+              <th>Error Stage</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for call in recent_failures %}
+            <tr>
+              <td>
+                <a href="/admin/voice_calls/callrecord/{{ call.id }}/change/">
+                  {{ call.caller_number }}
+                </a>
+              </td>
+              <td style="color:var(--red);font-size:0.75rem;">
+                {% with last_fail=call.events.all|last %}
+                  {{ last_fail.payload.stage|default:"unknown" }}
+                {% endwith %}
+              </td>
+              <td style="color:var(--muted);font-size:0.75rem;">{{ call.created_at|date:"M d H:i" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="empty" style="color:var(--green);">No failures. All good.</div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- DOCUMENTS STATUS -->
+  <div class="section">
+    <div class="section-title">
+      Document Sync Status
+      <a href="/admin/rag_sync/knowledgedocument/" class="admin-link">Manage</a>
+    </div>
+    <div class="table-wrap">
+      <div class="doc-row">
+        <div>
+          <div class="doc-name">Indexed Documents</div>
+          <div class="doc-meta">Successfully uploaded and searchable via OpenAI Vector Store</div>
+        </div>
+        <span class="badge badge-indexed">{{ docs_indexed }} indexed</span>
+      </div>
+      <div class="doc-row">
+        <div>
+          <div class="doc-name">Pending / Uploading</div>
+          <div class="doc-meta">Queued or currently syncing to OpenAI</div>
+        </div>
+        <span class="badge badge-pending">{{ docs_pending }} pending</span>
+      </div>
+      <div class="doc-row">
+        <div>
+          <div class="doc-name">Failed Syncs</div>
+          <div class="doc-meta">Use Django Admin to re-sync failed documents</div>
+        </div>
+        <span class="badge badge-failed">{{ docs_failed }} failed</span>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+</body>
+</html>

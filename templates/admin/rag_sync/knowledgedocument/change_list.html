@@ -1,0 +1,15 @@
+{% extends "admin/change_list.html" %}
+{% load i18n %}
+
+{% block object-tools-items %}
+  <li>
+    <a href="{% url 'admin:rag_sync_knowledgedocument_upload' %}"
+       class="addlink"
+       style="background:#00e5cc;color:#0a0a0f;font-weight:700;padding:8px 16px;
+              border-radius:6px;text-decoration:none;display:inline-flex;
+              align-items:center;gap:6px;font-size:13px;">
+      ⬆&nbsp; Upload Documents
+    </a>
+  </li>
+  {{ block.super }}
+{% endblock %}

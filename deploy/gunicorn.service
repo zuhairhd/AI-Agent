@@ -1,0 +1,23 @@
+[Unit]
+Description=Voice AI Agent — Gunicorn WSGI Server
+After=network.target postgresql.service redis.service
+Requires=postgresql.service redis.service
+
+[Service]
+User=ubuntu
+Group=www-data
+WorkingDirectory=/opt/voice_ai_agent
+Environment="DJANGO_SETTINGS_MODULE=config.settings.production"
+ExecStart=/opt/voice_ai_agent/venv/bin/gunicorn \
+          --workers 4 \
+          --worker-class sync \
+          --timeout 120 \
+          --bind 127.0.0.1:8000 \
+          --access-logfile /var/log/voice_ai_agent/gunicorn_access.log \
+          --error-logfile /var/log/voice_ai_agent/gunicorn_error.log \
+          config.wsgi:application
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

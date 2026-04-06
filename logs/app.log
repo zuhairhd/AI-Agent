@@ -1,0 +1,407 @@
+[2026-04-04 16:16:32,597] INFO django.utils.autoreload Watching for file changes with StatReloader
+[2026-04-04 16:16:46,340] ERROR django.security.DisallowedHost Invalid HTTP_HOST header: '172.16.100.110:8000'. You may need to add '172.16.100.110' to ALLOWED_HOSTS.
+Traceback (most recent call last):
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/utils/deprecation.py", line 133, in __call__
+    response = self.process_request(request)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/middleware/common.py", line 48, in process_request
+    host = request.get_host()
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/http/request.py", line 150, in get_host
+    raise DisallowedHost(msg)
+django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: '172.16.100.110:8000'. You may need to add '172.16.100.110' to ALLOWED_HOSTS.
+[2026-04-04 16:16:46,340] WARNING django.server "GET / HTTP/1.1" 400 68988
+[2026-04-04 16:16:46,438] ERROR django.security.DisallowedHost Invalid HTTP_HOST header: '172.16.100.110:8000'. You may need to add '172.16.100.110' to ALLOWED_HOSTS.
+Traceback (most recent call last):
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/utils/deprecation.py", line 133, in __call__
+    response = self.process_request(request)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/middleware/common.py", line 48, in process_request
+    host = request.get_host()
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/http/request.py", line 150, in get_host
+    raise DisallowedHost(msg)
+django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: '172.16.100.110:8000'. You may need to add '172.16.100.110' to ALLOWED_HOSTS.
+[2026-04-04 16:16:46,439] WARNING django.server "GET /favicon.ico HTTP/1.1" 400 69120
+[2026-04-04 16:27:39,375] INFO django.utils.autoreload Watching for file changes with StatReloader
+[2026-04-04 16:27:44,197] WARNING django.request Not Found: /
+[2026-04-04 16:27:44,197] WARNING django.server "GET / HTTP/1.1" 404 2404
+[2026-04-04 16:28:47,372] INFO django.server "GET /admin/ HTTP/1.1" 302 0
+[2026-04-04 16:28:47,456] INFO django.server "GET /admin/login/?next=/admin/ HTTP/1.1" 200 4181
+[2026-04-04 16:28:47,492] INFO django.server "GET /static/admin/css/dark_mode.css HTTP/1.1" 200 2929
+[2026-04-04 16:28:47,496] INFO django.server "GET /static/admin/css/nav_sidebar.css HTTP/1.1" 200 2694
+[2026-04-04 16:28:47,498] INFO django.server "GET /static/admin/js/theme.js HTTP/1.1" 200 1943
+[2026-04-04 16:28:47,498] INFO django.server "GET /static/admin/css/login.css HTTP/1.1" 200 958
+[2026-04-04 16:28:47,498] INFO django.server "GET /static/admin/css/base.css HTTP/1.1" 200 21310
+[2026-04-04 16:28:47,499] INFO django.server "GET /static/admin/js/nav_sidebar.js HTTP/1.1" 200 3063
+[2026-04-04 16:28:47,499] INFO django.server "GET /static/admin/css/responsive.css HTTP/1.1" 200 18559
+[2026-04-04 16:29:22,759] WARNING django.request Not Found: /api/
+[2026-04-04 16:29:22,759] WARNING django.server "GET /api/ HTTP/1.1" 404 2507
+[2026-04-04 16:30:52,027] INFO django.server "GET /api/call HTTP/1.1" 301 0
+[2026-04-04 16:30:52,031] WARNING django.request Method Not Allowed (GET): /api/call/
+[2026-04-04 16:30:52,032] WARNING django.server "GET /api/call/ HTTP/1.1" 405 0
+[2026-04-04 16:33:43,962] INFO django.utils.autoreload Watching for file changes with StatReloader
+[2026-04-04 16:33:51,285] INFO django.server "GET /admin/ HTTP/1.1" 302 0
+[2026-04-04 16:33:51,347] INFO django.server "GET /admin/login/?next=/admin/ HTTP/1.1" 200 4181
+[2026-04-04 16:33:51,370] INFO django.server "GET /static/admin/js/theme.js HTTP/1.1" 304 0
+[2026-04-04 16:33:51,373] INFO django.server "GET /static/admin/js/nav_sidebar.js HTTP/1.1" 304 0
+[2026-04-04 16:33:51,374] INFO django.server "GET /static/admin/css/base.css HTTP/1.1" 304 0
+[2026-04-04 16:33:51,374] INFO django.server "GET /static/admin/css/dark_mode.css HTTP/1.1" 304 0
+[2026-04-04 16:33:51,376] INFO django.server "GET /static/admin/css/nav_sidebar.css HTTP/1.1" 304 0
+[2026-04-04 16:33:51,377] INFO django.server "GET /static/admin/css/login.css HTTP/1.1" 304 0
+[2026-04-04 16:33:51,411] INFO django.server "GET /static/admin/css/responsive.css HTTP/1.1" 304 0
+[2026-04-04 16:34:00,635] INFO django.server "POST /admin/login/?next=/admin/ HTTP/1.1" 302 0
+[2026-04-04 16:34:00,728] INFO django.server "GET /admin/ HTTP/1.1" 200 8680
+[2026-04-04 16:34:00,774] INFO django.server "GET /static/admin/css/dashboard.css HTTP/1.1" 200 441
+[2026-04-04 16:34:00,822] INFO django.server "GET /static/admin/img/icon-addlink.svg HTTP/1.1" 200 331
+[2026-04-04 16:34:00,823] INFO django.server "GET /static/admin/img/icon-changelink.svg HTTP/1.1" 200 380
+[2026-04-04 16:34:26,055] ERROR django.request Internal Server Error: /admin/rag_sync/knowledgedocument/
+Traceback (most recent call last):
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+psycopg2.errors.UndefinedTable: relation "knowledge_documents" does not exist
+LINE 1: SELECT COUNT(*) AS "__count" FROM "knowledge_documents"
+                                          ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/contrib/admin/options.py", line 688, in wrapper
+    return self.admin_site.admin_view(view)(*args, **kwargs)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/utils/decorators.py", line 134, in _wrapper_view
+    response = view_func(request, *args, **kwargs)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/views/decorators/cache.py", line 62, in _wrapper_view_func
+    response = view_func(request, *args, **kwargs)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/contrib/admin/sites.py", line 242, in inner
+    return view(request, *args, **kwargs)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/utils/decorators.py", line 46, in _wrapper
+    return bound_method(*args, **kwargs)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/utils/decorators.py", line 134, in _wrapper_view
+    response = view_func(request, *args, **kwargs)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/contrib/admin/options.py", line 1926, in changelist_view
+    cl = self.get_changelist_instance(request)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/contrib/admin/options.py", line 836, in get_changelist_instance
+    return ChangeList(
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/contrib/admin/views/main.py", line 123, in __init__
+    self.get_results(request)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/contrib/admin/views/main.py", line 279, in get_results
+    result_count = paginator.count
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/utils/functional.py", line 57, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/core/paginator.py", line 93, in count
+    return c()
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/models/query.py", line 610, in count
+    return self.query.get_count(using=self.db)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 570, in get_count
+    return obj.get_aggregation(using, {"__count": Count("*")})["__count"]
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 556, in get_aggregation
+    result = compiler.execute_sql(SINGLE)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/models/sql/compiler.py", line 1562, in execute_sql
+    cursor.execute(sql, params)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 102, in execute
+    return super().execute(sql, params)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 67, in execute
+    return self._execute_with_wrappers(
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 80, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 84, in _execute
+    with self.db.wrap_database_errors:
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+django.db.utils.ProgrammingError: relation "knowledge_documents" does not exist
+LINE 1: SELECT COUNT(*) AS "__count" FROM "knowledge_documents"
+                                          ^
+
+[2026-04-04 16:34:26,061] ERROR django.server "GET /admin/rag_sync/knowledgedocument/ HTTP/1.1" 500 173548
+[2026-04-04 16:39:35,828] INFO django.utils.autoreload Watching for file changes with StatReloader
+[2026-04-04 16:39:46,748] INFO django.server "GET /admin/ HTTP/1.1" 200 8680
+[2026-04-04 16:39:46,775] INFO django.server "GET /static/admin/js/theme.js HTTP/1.1" 304 0
+[2026-04-04 16:39:46,777] INFO django.server "GET /static/admin/css/dark_mode.css HTTP/1.1" 304 0
+[2026-04-04 16:39:46,778] INFO django.server "GET /static/admin/css/base.css HTTP/1.1" 304 0
+[2026-04-04 16:39:46,780] INFO django.server "GET /static/admin/css/nav_sidebar.css HTTP/1.1" 304 0
+[2026-04-04 16:39:46,780] INFO django.server "GET /static/admin/js/nav_sidebar.js HTTP/1.1" 304 0
+[2026-04-04 16:39:46,781] INFO django.server "GET /static/admin/css/dashboard.css HTTP/1.1" 304 0
+[2026-04-04 16:39:46,819] INFO django.server "GET /static/admin/css/responsive.css HTTP/1.1" 304 0
+[2026-04-04 16:39:46,879] INFO django.server "GET /static/admin/img/icon-addlink.svg HTTP/1.1" 200 331
+[2026-04-04 16:39:46,879] INFO django.server "GET /static/admin/img/icon-changelink.svg HTTP/1.1" 200 380
+[2026-04-04 16:39:52,241] INFO django.server "GET /admin/rag_sync/knowledgedocument/add/ HTTP/1.1" 200 16371
+[2026-04-04 16:39:52,276] INFO django.server "GET /static/admin/js/collapse.js HTTP/1.1" 200 1803
+[2026-04-04 16:39:52,276] INFO django.server "GET /static/admin/css/forms.css HTTP/1.1" 200 9090
+[2026-04-04 16:39:52,277] INFO django.server "GET /static/admin/js/core.js HTTP/1.1" 200 5682
+[2026-04-04 16:39:52,278] INFO django.server "GET /static/admin/js/jquery.init.js HTTP/1.1" 200 347
+[2026-04-04 16:39:52,282] INFO django.server "GET /static/admin/js/urlify.js HTTP/1.1" 200 7887
+[2026-04-04 16:39:52,283] INFO django.server "GET /static/admin/js/admin/RelatedObjectLookups.js HTTP/1.1" 200 8943
+[2026-04-04 16:39:52,283] INFO django.server "GET /static/admin/js/actions.js HTTP/1.1" 200 7872
+[2026-04-04 16:39:52,285] INFO django.server "GET /static/admin/js/prepopulate.js HTTP/1.1" 200 1531
+[2026-04-04 16:39:52,286] INFO django.server "GET /static/admin/js/change_form.js HTTP/1.1" 200 606
+[2026-04-04 16:39:52,288] INFO django.server "GET /static/admin/js/vendor/xregexp/xregexp.js HTTP/1.1" 200 232381
+[2026-04-04 16:39:52,288] INFO django.server "GET /static/admin/js/vendor/jquery/jquery.js HTTP/1.1" 200 292458
+[2026-04-04 16:39:52,291] INFO django.server "GET /static/admin/js/prepopulate_init.js HTTP/1.1" 200 586
+[2026-04-04 16:39:52,291] INFO django.server "GET /static/admin/css/widgets.css HTTP/1.1" 200 11921
+[2026-04-04 16:39:52,295] INFO django.server "GET /admin/jsi18n/ HTTP/1.1" 200 3343
+[2026-04-04 16:40:40,640] INFO django.server "GET /admin/rag_sync/knowledgedocument/ HTTP/1.1" 200 10328
+[2026-04-04 16:40:40,660] INFO django.server "GET /static/admin/css/changelists.css HTTP/1.1" 200 6566
+[2026-04-04 16:40:40,661] INFO django.server "GET /static/admin/js/filters.js HTTP/1.1" 200 978
+[2026-04-04 16:40:40,678] INFO django.server "GET /admin/jsi18n/ HTTP/1.1" 200 3343
+[2026-04-04 16:40:40,679] INFO django.server "GET /static/admin/img/search.svg HTTP/1.1" 200 458
+[2026-04-04 16:40:40,689] INFO django.server "GET /static/admin/img/tooltag-add.svg HTTP/1.1" 200 331
+[2026-04-04 16:40:42,586] INFO django.server "GET /admin/rag_sync/ HTTP/1.1" 200 5137
+[2026-04-04 16:40:47,085] INFO django.server "GET /admin/ HTTP/1.1" 200 8680
+[2026-04-04 16:40:49,448] ERROR django.request Internal Server Error: /admin/voice_calls/callevent/
+Traceback (most recent call last):
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+psycopg2.errors.UndefinedTable: relation "call_events" does not exist
+LINE 1: SELECT COUNT(*) AS "__count" FROM "call_events"
+                                          ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/contrib/admin/options.py", line 688, in wrapper
+    return self.admin_site.admin_view(view)(*args, **kwargs)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/utils/decorators.py", line 134, in _wrapper_view
+    response = view_func(request, *args, **kwargs)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/views/decorators/cache.py", line 62, in _wrapper_view_func
+    response = view_func(request, *args, **kwargs)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/contrib/admin/sites.py", line 242, in inner
+    return view(request, *args, **kwargs)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/utils/decorators.py", line 46, in _wrapper
+    return bound_method(*args, **kwargs)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/utils/decorators.py", line 134, in _wrapper_view
+    response = view_func(request, *args, **kwargs)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/contrib/admin/options.py", line 1926, in changelist_view
+    cl = self.get_changelist_instance(request)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/contrib/admin/options.py", line 836, in get_changelist_instance
+    return ChangeList(
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/contrib/admin/views/main.py", line 123, in __init__
+    self.get_results(request)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/contrib/admin/views/main.py", line 279, in get_results
+    result_count = paginator.count
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/utils/functional.py", line 57, in __get__
+    res = instance.__dict__[self.name] = self.func(instance)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/core/paginator.py", line 93, in count
+    return c()
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/models/query.py", line 610, in count
+    return self.query.get_count(using=self.db)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 570, in get_count
+    return obj.get_aggregation(using, {"__count": Count("*")})["__count"]
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/models/sql/query.py", line 556, in get_aggregation
+    result = compiler.execute_sql(SINGLE)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/models/sql/compiler.py", line 1562, in execute_sql
+    cursor.execute(sql, params)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 102, in execute
+    return super().execute(sql, params)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 67, in execute
+    return self._execute_with_wrappers(
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 80, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 84, in _execute
+    with self.db.wrap_database_errors:
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+django.db.utils.ProgrammingError: relation "call_events" does not exist
+LINE 1: SELECT COUNT(*) AS "__count" FROM "call_events"
+                                          ^
+
+[2026-04-04 16:40:49,452] ERROR django.server "GET /admin/voice_calls/callevent/ HTTP/1.1" 500 172689
+[2026-04-04 16:42:07,208] INFO django.utils.autoreload Watching for file changes with StatReloader
+[2026-04-04 16:42:18,215] INFO django.server "GET /admin/ HTTP/1.1" 200 8680
+[2026-04-04 16:42:23,023] INFO django.server "GET /admin/voice_calls/callevent/ HTTP/1.1" 200 10039
+[2026-04-04 16:42:23,060] INFO django.server "GET /admin/jsi18n/ HTTP/1.1" 200 3343
+[2026-04-04 16:42:29,698] INFO django.server "GET /admin/voice_calls/callevent/add/ HTTP/1.1" 200 12226
+[2026-04-04 16:42:29,734] INFO django.server "GET /admin/jsi18n/ HTTP/1.1" 200 3343
+[2026-04-04 16:42:37,933] INFO django.server "GET /admin/voice_calls/callrecord/add/ HTTP/1.1" 200 16471
+[2026-04-04 16:42:37,956] INFO django.server "GET /static/admin/js/inlines.js HTTP/1.1" 200 15526
+[2026-04-04 16:42:37,965] INFO django.server "GET /admin/jsi18n/ HTTP/1.1" 200 3343
+[2026-04-04 16:42:42,180] INFO django.server "GET /admin/voice_calls/callevent/ HTTP/1.1" 200 10039
+[2026-04-04 16:42:42,217] INFO django.server "GET /admin/jsi18n/ HTTP/1.1" 200 3343
+[2026-04-04 16:42:47,109] INFO django.server "GET /admin/django_celery_results/groupresult/ HTTP/1.1" 200 10691
+[2026-04-04 16:42:47,152] INFO django.server "GET /admin/jsi18n/ HTTP/1.1" 200 3343
+[2026-04-04 16:42:48,754] INFO django.server "GET /admin/django_celery_results/groupresult/add/ HTTP/1.1" 200 14387
+[2026-04-04 16:42:48,789] INFO django.server "GET /admin/jsi18n/ HTTP/1.1" 200 3343
+[2026-04-04 16:42:50,736] INFO django.server "GET /admin/django_celery_results/taskresult/add/ HTTP/1.1" 200 20699
+[2026-04-04 16:42:50,824] INFO django.server "GET /admin/jsi18n/ HTTP/1.1" 200 3343
+[2026-04-04 16:42:55,097] INFO django.server "GET /admin/auth/user/add/ HTTP/1.1" 200 12440
+[2026-04-04 16:42:55,134] INFO django.server "GET /admin/jsi18n/ HTTP/1.1" 200 3343
+[2026-04-04 16:42:59,020] INFO django.server "GET /admin/auth/group/add/ HTTP/1.1" 200 15003
+[2026-04-04 16:42:59,039] INFO django.server "GET /static/admin/js/SelectBox.js HTTP/1.1" 200 4530
+[2026-04-04 16:42:59,040] INFO django.server "GET /static/admin/js/SelectFilter2.js HTTP/1.1" 200 15292
+[2026-04-04 16:42:59,056] INFO django.server "GET /admin/jsi18n/ HTTP/1.1" 200 3343
+[2026-04-04 16:42:59,081] INFO django.server "GET /static/admin/img/icon-unknown.svg HTTP/1.1" 200 655
+[2026-04-04 16:42:59,082] INFO django.server "GET /static/admin/img/selector-icons.svg HTTP/1.1" 200 3291
+[2026-04-04 16:42:59,082] INFO django.server "GET /static/admin/img/icon-unknown-alt.svg HTTP/1.1" 200 655
+[2026-04-04 16:43:03,952] INFO django.server "GET /admin/auth/ HTTP/1.1" 200 5576
+[2026-04-04 16:43:06,533] INFO django.server "GET /admin/ HTTP/1.1" 200 8680
+[2026-04-04 16:43:19,673] INFO django.server "GET /admin/rag_sync/knowledgedocument/ HTTP/1.1" 200 10328
+[2026-04-04 16:43:19,715] INFO django.server "GET /admin/jsi18n/ HTTP/1.1" 200 3343
+[2026-04-04 16:43:22,785] INFO django.server "GET /admin/rag_sync/knowledgedocument/add/ HTTP/1.1" 200 16371
+[2026-04-04 16:43:22,824] INFO django.server "GET /admin/jsi18n/ HTTP/1.1" 200 3343
+[2026-04-04 16:48:26,296] WARNING django.request Bad Request: /api/call/
+[2026-04-04 16:48:26,297] WARNING django.server "POST /api/call/ HTTP/1.1" 400 59
+[2026-04-04 16:49:04,200] INFO django.server - Broken pipe from ('172.16.100.32', 8390)
+[2026-04-04 17:10:59,542] INFO django.utils.autoreload Watching for file changes with StatReloader
+[2026-04-04 17:11:11,683] INFO django.server "GET /admin/ HTTP/1.1" 200 8680
+[2026-04-04 17:11:11,706] INFO django.server "GET /static/admin/js/theme.js HTTP/1.1" 304 0
+[2026-04-04 17:11:11,708] INFO django.server "GET /static/admin/css/dark_mode.css HTTP/1.1" 304 0
+[2026-04-04 17:11:11,709] INFO django.server "GET /static/admin/css/base.css HTTP/1.1" 304 0
+[2026-04-04 17:11:11,710] INFO django.server "GET /static/admin/css/nav_sidebar.css HTTP/1.1" 304 0
+[2026-04-04 17:11:11,711] INFO django.server "GET /static/admin/js/nav_sidebar.js HTTP/1.1" 304 0
+[2026-04-04 17:11:11,712] INFO django.server "GET /static/admin/css/dashboard.css HTTP/1.1" 304 0
+[2026-04-04 17:11:11,748] INFO django.server "GET /static/admin/css/responsive.css HTTP/1.1" 304 0
+[2026-04-04 17:11:11,822] INFO django.server "GET /static/admin/img/icon-changelink.svg HTTP/1.1" 200 380
+[2026-04-04 17:11:11,822] INFO django.server "GET /static/admin/img/icon-addlink.svg HTTP/1.1" 200 331
+[2026-04-04 17:11:18,232] ERROR django.request Internal Server Error: /admin/rag_sync/knowledgedocument/
+Traceback (most recent call last):
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+psycopg2.errors.UndefinedColumn: column knowledge_documents.original_name does not exist
+LINE 1: ...."updated_at", "knowledge_documents"."file_name", "knowledge...
+                                                             ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/contrib/admin/options.py", line 688, in wrapper
+    return self.admin_site.admin_view(view)(*args, **kwargs)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/utils/decorators.py", line 134, in _wrapper_view
+    response = view_func(request, *args, **kwargs)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/views/decorators/cache.py", line 62, in _wrapper_view_func
+    response = view_func(request, *args, **kwargs)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/contrib/admin/sites.py", line 242, in inner
+    return view(request, *args, **kwargs)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/utils/decorators.py", line 46, in _wrapper
+    return bound_method(*args, **kwargs)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/utils/decorators.py", line 134, in _wrapper_view
+    response = view_func(request, *args, **kwargs)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/contrib/admin/options.py", line 2065, in changelist_view
+    "selection_note": _("0 of %(cnt)s selected") % {"cnt": len(cl.result_list)},
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/models/query.py", line 382, in __len__
+    self._fetch_all()
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/models/query.py", line 1886, in _fetch_all
+    self._result_cache = list(self._iterable_class(self))
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/models/query.py", line 93, in __iter__
+    results = compiler.execute_sql(
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/models/sql/compiler.py", line 1562, in execute_sql
+    cursor.execute(sql, params)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 102, in execute
+    return super().execute(sql, params)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 67, in execute
+    return self._execute_with_wrappers(
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 80, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 84, in _execute
+    with self.db.wrap_database_errors:
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "/home/agent/voice_ai_agent/venv/lib/python3.10/site-packages/django/db/backends/utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+django.db.utils.ProgrammingError: column knowledge_documents.original_name does not exist
+LINE 1: ...."updated_at", "knowledge_documents"."file_name", "knowledge...
+                                                             ^
+
+[2026-04-04 17:11:18,235] ERROR django.server "GET /admin/rag_sync/knowledgedocument/ HTTP/1.1" 500 155712
+[2026-04-04 17:20:16,128] INFO django.utils.autoreload Watching for file changes with StatReloader
+[2026-04-04 17:20:29,447] INFO django.server "GET /admin/rag_sync/knowledgedocument/ HTTP/1.1" 200 11501
+[2026-04-04 17:20:29,467] INFO django.server "GET /static/admin/js/theme.js HTTP/1.1" 304 0
+[2026-04-04 17:20:29,469] INFO django.server "GET /static/admin/css/base.css HTTP/1.1" 304 0
+[2026-04-04 17:20:29,470] INFO django.server "GET /static/admin/js/nav_sidebar.js HTTP/1.1" 304 0
+[2026-04-04 17:20:29,473] INFO django.server "GET /static/admin/js/vendor/jquery/jquery.js HTTP/1.1" 304 0
+[2026-04-04 17:20:29,473] INFO django.server "GET /static/admin/js/jquery.init.js HTTP/1.1" 304 0
+[2026-04-04 17:20:29,489] INFO django.server "GET /admin/jsi18n/ HTTP/1.1" 200 3343
+[2026-04-04 17:20:29,491] INFO django.server "GET /static/admin/css/dark_mode.css HTTP/1.1" 304 0
+[2026-04-04 17:20:29,508] INFO django.server "GET /static/admin/css/nav_sidebar.css HTTP/1.1" 304 0
+[2026-04-04 17:20:29,510] INFO django.server "GET /static/admin/js/core.js HTTP/1.1" 304 0
+[2026-04-04 17:20:29,511] INFO django.server "GET /static/admin/js/admin/RelatedObjectLookups.js HTTP/1.1" 304 0
+[2026-04-04 17:20:29,515] INFO django.server "GET /static/admin/css/changelists.css HTTP/1.1" 304 0
+[2026-04-04 17:20:29,516] INFO django.server "GET /static/admin/js/actions.js HTTP/1.1" 304 0
+[2026-04-04 17:20:29,534] INFO django.server "GET /static/admin/js/urlify.js HTTP/1.1" 304 0
+[2026-04-04 17:20:29,550] INFO django.server "GET /static/admin/js/prepopulate.js HTTP/1.1" 304 0
+[2026-04-04 17:20:29,554] INFO django.server "GET /static/admin/js/filters.js HTTP/1.1" 304 0
+[2026-04-04 17:20:29,555] INFO django.server "GET /static/admin/js/vendor/xregexp/xregexp.js HTTP/1.1" 304 0
+[2026-04-04 17:20:29,557] INFO django.server "GET /static/admin/css/responsive.css HTTP/1.1" 304 0
+[2026-04-04 17:20:29,634] INFO django.server "GET /static/admin/img/icon-addlink.svg HTTP/1.1" 200 331
+[2026-04-04 17:20:29,635] INFO django.server "GET /static/admin/img/tooltag-add.svg HTTP/1.1" 200 331
+[2026-04-04 17:20:29,635] INFO django.server "GET /static/admin/img/search.svg HTTP/1.1" 200 458
+[2026-04-04 17:20:40,206] INFO django.server "GET /admin/rag_sync/knowledgedocument/upload/ HTTP/1.1" 200 14399
+[2026-04-04 17:22:49,418] INFO apps.rag_sync.file_handler Saved uploaded file 'Future Smart Support.txt' → /home/agent/voice_ai_agent/company_docs/a479efb9_Future_Smart_Support.txt (130 bytes)
+[2026-04-04 17:22:49,421] INFO apps.rag_sync.file_handler Created KnowledgeDocument record: fde76168-2c8d-46d0-95d0-08d6561548eb for 'Future Smart Support.txt'
+[2026-04-04 17:22:49,437] WARNING kombu.connection No hostname was supplied. Reverting to default 'localhost'
+[2026-04-04 17:22:50,047] WARNING apps.rag_sync.views Could not queue sync task for 'Future Smart Support.txt': [Errno 111] Connection refused
+[2026-04-04 17:22:50,047] INFO apps.rag_sync.views Upload session: 1 file(s) uploaded
+[2026-04-04 17:22:50,050] INFO django.server "POST /admin/rag_sync/knowledgedocument/upload/ HTTP/1.1" 302 0
+[2026-04-04 17:22:50,149] INFO django.server "GET /admin/rag_sync/knowledgedocument/ HTTP/1.1" 200 15366
+[2026-04-04 17:22:50,185] INFO django.server "GET /admin/jsi18n/ HTTP/1.1" 200 3343
+[2026-04-04 17:22:50,197] INFO django.server "GET /static/admin/img/icon-alert.svg HTTP/1.1" 200 504
+[2026-04-04 17:22:50,198] INFO django.server "GET /static/admin/img/sorting-icons.svg HTTP/1.1" 200 1097
+[2026-04-04 17:22:50,199] INFO django.server "GET /static/admin/img/icon-yes.svg HTTP/1.1" 200 436
+[2026-04-04 17:30:12,577] INFO django.utils.autoreload Watching for file changes with StatReloader
+[2026-04-04 17:30:27,574] INFO django.server "GET /admin/rag_sync/knowledgedocument/ HTTP/1.1" 200 15003
+[2026-04-04 17:30:27,588] INFO django.server "GET /static/admin/js/theme.js HTTP/1.1" 304 0
+[2026-04-04 17:30:27,590] INFO django.server "GET /static/admin/css/base.css HTTP/1.1" 304 0
+[2026-04-04 17:30:27,591] INFO django.server "GET /static/admin/js/nav_sidebar.js HTTP/1.1" 304 0
+[2026-04-04 17:30:27,592] INFO django.server "GET /static/admin/css/dark_mode.css HTTP/1.1" 304 0
+[2026-04-04 17:30:27,594] INFO django.server "GET /static/admin/css/nav_sidebar.css HTTP/1.1" 304 0
+[2026-04-04 17:30:27,610] INFO django.server "GET /admin/jsi18n/ HTTP/1.1" 200 3343
+[2026-04-04 17:30:27,612] INFO django.server "GET /static/admin/css/changelists.css HTTP/1.1" 304 0
+[2026-04-04 17:30:27,630] INFO django.server "GET /static/admin/js/vendor/jquery/jquery.js HTTP/1.1" 304 0
+[2026-04-04 17:30:27,631] INFO django.server "GET /static/admin/js/jquery.init.js HTTP/1.1" 304 0
+[2026-04-04 17:30:27,632] INFO django.server "GET /static/admin/js/core.js HTTP/1.1" 304 0
+[2026-04-04 17:30:27,633] INFO django.server "GET /static/admin/js/admin/RelatedObjectLookups.js HTTP/1.1" 304 0
+[2026-04-04 17:30:27,636] INFO django.server "GET /static/admin/js/actions.js HTTP/1.1" 304 0
+[2026-04-04 17:30:27,654] INFO django.server "GET /static/admin/js/urlify.js HTTP/1.1" 304 0
+[2026-04-04 17:30:27,674] INFO django.server "GET /static/admin/js/prepopulate.js HTTP/1.1" 304 0
+[2026-04-04 17:30:27,675] INFO django.server "GET /static/admin/js/filters.js HTTP/1.1" 304 0
+[2026-04-04 17:30:27,678] INFO django.server "GET /static/admin/js/vendor/xregexp/xregexp.js HTTP/1.1" 304 0
+[2026-04-04 17:30:27,681] INFO django.server "GET /static/admin/css/responsive.css HTTP/1.1" 304 0
+[2026-04-04 17:30:27,765] INFO django.server "GET /static/admin/img/icon-addlink.svg HTTP/1.1" 200 331
+[2026-04-04 17:30:27,769] INFO django.server "GET /static/admin/img/search.svg HTTP/1.1" 200 458
+[2026-04-04 17:30:27,769] INFO django.server "GET /static/admin/img/tooltag-add.svg HTTP/1.1" 200 331
+[2026-04-04 17:30:33,147] INFO django.server "GET /admin/rag_sync/knowledgedocument/?sync_status__exact=uploading HTTP/1.1" 200 12694
+[2026-04-04 17:30:33,204] INFO django.server "GET /admin/jsi18n/ HTTP/1.1" 200 3343
+[2026-04-04 17:30:35,819] INFO django.server "GET /admin/rag_sync/knowledgedocument/?sync_status__exact=pending HTTP/1.1" 200 15707
+[2026-04-04 17:30:35,887] INFO django.server "GET /admin/jsi18n/ HTTP/1.1" 200 3343
+[2026-04-04 17:30:38,514] INFO django.server "GET /admin/rag_sync/knowledgedocument/? HTTP/1.1" 200 15003
+[2026-04-04 17:30:38,561] INFO django.server "GET /admin/jsi18n/ HTTP/1.1" 200 3343
+[2026-04-04 17:31:17,477] INFO django.server "POST /admin/rag_sync/knowledgedocument/? HTTP/1.1" 200 9578
+[2026-04-04 17:31:17,495] INFO django.server "GET /static/admin/js/cancel.js HTTP/1.1" 200 884
+[2026-04-04 17:31:19,400] INFO django.server "POST /admin/rag_sync/knowledgedocument/? HTTP/1.1" 302 0
+[2026-04-04 17:31:19,531] INFO django.server "GET /admin/rag_sync/knowledgedocument/ HTTP/1.1" 200 11649
+[2026-04-04 17:31:19,568] INFO django.server "GET /admin/jsi18n/ HTTP/1.1" 200 3343
+[2026-04-04 17:31:21,822] INFO django.server "GET /admin/rag_sync/knowledgedocument/upload/ HTTP/1.1" 200 14399
+[2026-04-04 17:31:29,281] INFO apps.rag_sync.file_handler Saved uploaded file 'Future Smart Support.txt' → /home/agent/voice_ai_agent/company_docs/a054a2fc_Future_Smart_Support.txt (130 bytes)
+[2026-04-04 17:31:29,283] INFO apps.rag_sync.file_handler Created KnowledgeDocument record: 3c35b1d3-71e2-4589-829b-cca69e5ce1d4 for 'Future Smart Support.txt'
+[2026-04-04 17:31:29,298] WARNING kombu.connection No hostname was supplied. Reverting to default 'localhost'
+[2026-04-04 17:31:29,908] WARNING apps.rag_sync.views Could not queue sync task for 'Future Smart Support.txt': [Errno 111] Connection refused
+[2026-04-04 17:31:29,909] INFO apps.rag_sync.views Upload session: 1 file(s) uploaded
+[2026-04-04 17:31:29,911] INFO django.server "POST /admin/rag_sync/knowledgedocument/upload/ HTTP/1.1" 302 0
+[2026-04-04 17:31:30,050] INFO django.server "GET /admin/rag_sync/knowledgedocument/ HTTP/1.1" 200 15366
+[2026-04-04 17:31:30,088] INFO django.server "GET /admin/jsi18n/ HTTP/1.1" 200 3343
+[2026-04-04 17:32:59,055] ERROR apps.rag_sync.admin Could not queue sync for 3c35b1d3-71e2-4589-829b-cca69e5ce1d4: [Errno 111] Connection refused
+[2026-04-04 17:32:59,056] INFO django.server "POST /admin/rag_sync/knowledgedocument/ HTTP/1.1" 302 0
+[2026-04-04 17:32:59,145] INFO django.server "GET /admin/rag_sync/knowledgedocument/ HTTP/1.1" 200 15193
+[2026-04-04 17:32:59,176] INFO django.server "GET /admin/jsi18n/ HTTP/1.1" 200 3343
+[2026-04-04 17:32:59,186] INFO django.server "GET /static/admin/img/icon-alert.svg HTTP/1.1" 200 504
+[2026-04-04 17:33:13,854] ERROR apps.rag_sync.admin Could not queue sync for 3c35b1d3-71e2-4589-829b-cca69e5ce1d4: [Errno 111] Connection refused
+[2026-04-04 17:33:13,856] INFO django.server "POST /admin/rag_sync/knowledgedocument/ HTTP/1.1" 302 0
+[2026-04-04 17:33:13,989] INFO django.server "GET /admin/rag_sync/knowledgedocument/ HTTP/1.1" 200 15193
+[2026-04-04 17:33:14,052] INFO django.server "GET /admin/jsi18n/ HTTP/1.1" 200 3343

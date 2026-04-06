@@ -1,0 +1,393 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}Upload Knowledge Documents{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+  /* ── Upload page — dark industrial aesthetic ───────────────────────── */
+  :root {
+    --teal:      #00e5cc;
+    --teal-dim:  rgba(0,229,204,0.10);
+    --teal-glow: rgba(0,229,204,0.22);
+    --surface:   #111118;
+    --surface2:  #1a1a26;
+    --border:    #2a2a3a;
+    --text:      #e2e8f0;
+    --muted:     #64748b;
+    --red:       #ef4444;
+    --amber:     #f59e0b;
+    --green:     #10b981;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  }
+
+  .upload-wrapper {
+    max-width: 700px;
+    margin: 32px auto;
+  }
+
+  /* Page header */
+  .upload-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .upload-header-icon {
+    width: 44px; height: 44px;
+    background: var(--teal-dim);
+    border: 1px solid var(--teal-glow);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .upload-header h1 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0;
+  }
+  .upload-header p {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin: 2px 0 0;
+  }
+
+  /* Drop zone card */
+  .drop-zone {
+    background: var(--surface);
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 48px 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+  .drop-zone:hover,
+  .drop-zone.drag-over {
+    border-color: var(--teal);
+    background: var(--teal-dim);
+  }
+  .drop-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .drop-icon {
+    font-size: 2.5rem;
+    margin-bottom: 12px;
+    display: block;
+    color: var(--teal);
+  }
+  .drop-label {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .drop-hint {
+    font-size: 0.78rem;
+    color: var(--muted);
+    font-family: var(--font-mono);
+  }
+  .drop-hint strong {
+    color: var(--teal);
+  }
+
+  /* File preview list */
+  #file-list {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.82rem;
+  }
+  .file-item-icon {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+  }
+  .file-item-name {
+    flex: 1;
+    color: var(--text);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .file-item-size {
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+  .file-item-ext {
+    padding: 1px 7px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    background: var(--teal-dim);
+    color: var(--teal);
+  }
+
+  /* Allowed types info box */
+  .info-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--teal);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-top: 20px;
+    font-size: 0.78rem;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+  .info-box strong { color: var(--text); }
+
+  /* Submit button */
+  .submit-row-custom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 24px;
+    gap: 12px;
+  }
+  .btn-upload {
+    background: var(--teal);
+    color: #0a0a0f;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 28px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+  .btn-upload:hover   { opacity: 0.88; }
+  .btn-upload:active  { transform: scale(0.97); }
+  .btn-upload:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .btn-back {
+    color: var(--muted);
+    font-size: 0.82rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .btn-back:hover { color: var(--text); }
+
+  /* Error / warning / success messages override */
+  .messagelist li {
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+  }
+  .messagelist li.success { border-left: 4px solid var(--green); }
+  .messagelist li.warning { border-left: 4px solid var(--amber); }
+  .messagelist li.error   { border-left: 4px solid var(--red);   }
+
+  /* Upload progress */
+  .upload-progress {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--teal);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Home</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label='rag_sync' %}">Rag_Sync</a>
+  &rsaquo; <a href="{% url 'admin:rag_sync_knowledgedocument_changelist' %}">Knowledge Documents</a>
+  &rsaquo; Upload
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="upload-wrapper">
+
+  <!-- Page header -->
+  <div class="upload-header">
+    <div class="upload-header-icon">⬆</div>
+    <div>
+      <h1>Upload Knowledge Documents</h1>
+      <p>Files are saved to <code>COMPANY_DOCS_ROOT</code> and queued for OpenAI indexing automatically.</p>
+    </div>
+  </div>
+
+  <!-- Django messages -->
+  {% if messages %}
+  <ul class="messagelist">
+    {% for message in messages %}
+    <li class="{{ message.tags }}">{{ message }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  <!-- Upload form -->
+  <form method="post" enctype="multipart/form-data" id="upload-form" novalidate>
+    {% csrf_token %}
+
+    <!-- Drop zone -->
+    <div class="drop-zone" id="drop-zone">
+      <input type="file"
+             name="files"
+             id="doc-files"
+             multiple
+             accept=".txt,.pdf,.docx,.doc,.md,.csv,.json,.xlsx,.xls,.pptx,.ppt,.html,.htm,.rtf">
+      <span class="drop-icon">📄</span>
+      <div class="drop-label">Drop files here or click to browse</div>
+      <div class="drop-hint">
+        <strong>PDF, DOCX, TXT, MD, CSV, JSON, XLSX, PPTX</strong> and more
+        &nbsp;·&nbsp; Max <strong>50 MB</strong> per file
+        &nbsp;·&nbsp; Multiple files supported
+      </div>
+    </div>
+
+    <!-- File preview list (populated by JS) -->
+    <div id="file-list"></div>
+
+    <!-- Info box -->
+    <div class="info-box">
+      <strong>What happens after upload?</strong><br>
+      Each file is saved to the server's <code>company_docs/</code> folder with a unique name,
+      a database record is created, and a sync task is queued to upload the file to
+      OpenAI and attach it to the Vector Store. The sync status will update from
+      <em>Pending → Uploading → Indexed</em> automatically.
+      <br><br>
+      <strong>Duplicate files</strong> (identical content) are detected by SHA-256 hash
+      and skipped with a warning — no duplicate records are created.
+    </div>
+
+    <!-- Actions row -->
+    <div class="submit-row-custom">
+      <a href="{% url 'admin:rag_sync_knowledgedocument_changelist' %}" class="btn-back">
+        ← Back to Documents
+      </a>
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div class="upload-progress" id="upload-progress">
+          <div class="spinner"></div>
+          <span>Uploading…</span>
+        </div>
+        <button type="submit" class="btn-upload" id="submit-btn" disabled>
+          ⬆ Upload Selected Files
+        </button>
+      </div>
+    </div>
+  </form>
+
+</div>
+
+<script>
+(function () {
+  const input     = document.getElementById('doc-files');
+  const dropZone  = document.getElementById('drop-zone');
+  const fileList  = document.getElementById('file-list');
+  const submitBtn = document.getElementById('submit-btn');
+  const form      = document.getElementById('upload-form');
+  const progress  = document.getElementById('upload-progress');
+
+  const EXT_ICONS = {
+    pdf: '📕', docx: '📘', doc: '📘', txt: '📄', md: '📝',
+    csv: '📊', json: '🗂', xlsx: '📗', xls: '📗',
+    pptx: '📙', ppt: '📙', html: '🌐', htm: '🌐', rtf: '📄',
+  };
+
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(1) + ' MB';
+  }
+
+  function renderFiles(files) {
+    fileList.innerHTML = '';
+    if (!files || files.length === 0) {
+      submitBtn.disabled = true;
+      return;
+    }
+    Array.from(files).forEach(function (f) {
+      const ext = f.name.split('.').pop().toLowerCase();
+      const icon = EXT_ICONS[ext] || '📄';
+      const item = document.createElement('div');
+      item.className = 'file-item';
+      item.innerHTML =
+        '<span class="file-item-icon">' + icon + '</span>' +
+        '<span class="file-item-name" title="' + f.name + '">' + f.name + '</span>' +
+        '<span class="file-item-ext">' + ext.toUpperCase() + '</span>' +
+        '<span class="file-item-size">' + formatSize(f.size) + '</span>';
+      fileList.appendChild(item);
+    });
+    submitBtn.disabled = false;
+  }
+
+  input.addEventListener('change', function () {
+    renderFiles(this.files);
+  });
+
+  // Drag-and-drop
+  dropZone.addEventListener('dragover', function (e) {
+    e.preventDefault();
+    dropZone.classList.add('drag-over');
+  });
+  dropZone.addEventListener('dragleave', function () {
+    dropZone.classList.remove('drag-over');
+  });
+  dropZone.addEventListener('drop', function (e) {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    // Transfer files to the input (best-effort — works in modern browsers)
+    const dt = e.dataTransfer;
+    if (dt && dt.files && dt.files.length) {
+      // We can't programmatically set input.files in all browsers,
+      // so we show the preview and let the form submit naturally with
+      // the file input value. Fallback: show file names from dataTransfer.
+      renderFiles(dt.files);
+      // Try to assign — works in Chrome/Edge; silently fails in Firefox
+      try {
+        input.files = dt.files;
+      } catch (_) {}
+    }
+  });
+
+  // Show spinner on submit
+  form.addEventListener('submit', function () {
+    if (input.files && input.files.length > 0) {
+      submitBtn.disabled = true;
+      progress.style.display = 'flex';
+    }
+  });
+})();
+</script>
+{% endblock %}
