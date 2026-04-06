@@ -17,14 +17,18 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_celery_results',
+    'rest_framework',
+    'corsheaders',
     'apps.core',
     'apps.voice_calls',
     'apps.rag_sync',
     'apps.asterisk_bridge',
     'apps.admin_panel',
+    'apps.portal',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -82,7 +86,10 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [BASE_DIR / 'static']
+_frontend_dist = BASE_DIR / 'frontend' / 'dist'
+STATICFILES_DIRS = [BASE_DIR / 'static'] + (
+    [('portal', _frontend_dist)] if _frontend_dist.exists() else []
+)
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.environ.get('MEDIA_ROOT', str(BASE_DIR / 'media' / 'calls'))
@@ -120,6 +127,38 @@ CALL_RESPONSES_ROOT        = os.environ.get(
     'CALL_RESPONSES_ROOT',
     str(BASE_DIR / 'media' / 'call_responses'),
 )
+
+# DRF
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
+}
+
+# CORS — Vite dev server; in production restrict to portal origin
+CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:5173').split(',')
+CORS_ALLOW_CREDENTIALS = True
+
+# Email
+EMAIL_BACKEND      = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST         = os.environ.get('EMAIL_HOST', 'localhost')
+EMAIL_PORT         = int(os.environ.get('EMAIL_PORT', '587'))
+EMAIL_HOST_USER    = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS      = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'alerts@futuresmartsupport.com')
+
+# Portal
+PORTAL_BASE_URL             = os.environ.get('PORTAL_BASE_URL', 'http://localhost:5173')
+ALERT_CONFIDENCE_THRESHOLD  = float(os.environ.get('ALERT_CONFIDENCE_THRESHOLD', '0.6'))
+PORTAL_NOTIFICATION_EMAILS  = [
+    e.strip() for e in os.environ.get('PORTAL_NOTIFICATION_EMAILS', '').split(',') if e.strip()
+]
 
 # Logging
 LOG_FILE = os.environ.get('LOG_FILE', str(BASE_DIR / 'logs' / 'app.log'))

@@ -1,0 +1,21 @@
+Future Smart Support — Admin Portal Alert
+==========================================
+
+Alert: {{ alert.title }}
+Severity: {{ alert.get_severity_display }}
+Type: {{ alert.get_alert_type_display }}
+
+Caller: {{ caller }}
+{% if call_time %}Call Time: {{ call_time|date:"Y-m-d H:i:s" }} UTC{% endif %}
+Call Status: {{ status }}
+Alert Created: {{ alert.created_at|date:"Y-m-d H:i:s" }} UTC
+
+{% if alert.description %}Details:
+{{ alert.description }}{% endif %}
+
+View full call details:
+{{ portal_url }}
+
+---
+You are receiving this because you have email alerts enabled in the {{ company }} Admin Portal.
+To change your preferences, log in and visit Settings.

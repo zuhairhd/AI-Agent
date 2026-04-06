@@ -87,6 +87,10 @@ class CallSession(TimeStampedModel):
         max_length=16, choices=Status.choices,
         default=Status.ACTIVE, db_index=True,
     )
+    # Portal fields
+    needs_followup = models.BooleanField(default=False, db_index=True)
+    staff_notes    = models.TextField(blank=True, null=True)
+
     # Becomes True the moment any turn triggers a transfer decision
     transfer_triggered = models.BooleanField(default=False)
     # Rule name or 'llm_flag' that caused the transfer
@@ -144,6 +148,8 @@ class ConversationTurn(models.Model):
     ai_response_text = models.TextField(blank=True, null=True)
     llm_started_at   = models.DateTimeField(null=True, blank=True)
     llm_completed_at = models.DateTimeField(null=True, blank=True)
+    # AI confidence score for this turn (0.0–1.0); set by LLM service
+    ai_confidence_score = models.FloatField(null=True, blank=True)
 
     # ── TTS output audio (played back by Asterisk) ────────────────────────────
     audio_response_path   = models.CharField(max_length=512, blank=True, null=True)
