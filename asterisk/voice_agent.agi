@@ -70,13 +70,20 @@ RECORDINGS_DIR  = os.environ.get('ASTERISK_RECORDINGS_DIR', '/var/spool/asterisk
 MIN_RECORDING_BYTES = 1024
 
 # Polling settings for turn-status
-POLL_INTERVAL = 1.5   # seconds between polls
+# 0.3s keeps perceived silence short without hammering the backend.
+POLL_INTERVAL = 0.3   # seconds between polls
 POLL_TIMEOUT  = 60    # max seconds to wait for STT+LLM+TTS to complete
 
-# Wait prompts — played immediately after recording, before backend submission
+# Ask prompts — played once (turn 1 only) to invite the caller to speak
+ASK_PROMPT = {
+    'ar': 'custom/please_ask_ar',   # "يرجى توضيح مشكلتك الآن."
+    'en': 'custom/please_ask_en',   # "Please tell me your issue now."
+}
+
+# Wait prompts — played once after recording ends, before backend submission
 WAIT_PROMPT = {
-    'ar': 'custom/please_wait_ar',
-    'en': 'custom/please_wait_en',
+    'ar': 'custom/please_wait_ar',  # "لحظة من فضلك."
+    'en': 'custom/please_wait_en',  # "Just a moment, please."
 }
 
 # ---------------------------------------------------------------------------
@@ -361,13 +368,9 @@ def main():
     except OSError as exc:
         log.warning(f"Could not create RECORDINGS_DIR {RECORDINGS_DIR!r}: {exc}")
 
-    # ── Play welcome message ───────────────────────────────────────────────
-    welcome_sound = os.environ.get('WELCOME_SOUND_NAME', 'welcome_future_smart')
-    log.info(f"Playing welcome | sound=custom/{welcome_sound}")
-    agi_verbose(f"[voice_agent] WELCOME START sound=custom/{welcome_sound}")
-    agi_stream_file(f'custom/{welcome_sound}')
-    log.info("Welcome message played.")
-    agi_verbose("[voice_agent] WELCOME END")
+    # NOTE: No welcome message played here.
+    # The [lang-select] language menu is the sole greeting the caller hears.
+    # Removing this extra playback eliminates ~5-8s of startup delay.
 
     # ── Conversation loop ──────────────────────────────────────────────────
     transfer_needed = False
@@ -387,6 +390,18 @@ def main():
             f"expected_file={recorded_path!r}"
         )
         agi_verbose(f"[voice_agent] RECORDING PLAN turn={turn_num} file={recorded_path}")
+
+        # ── Ask prompt (turn 1 only) ───────────────────────────────────────
+        # On the first turn the caller has just selected a language and has
+        # not yet heard any instruction.  Play the short ask prompt in the
+        # selected language before opening the recording channel.
+        # On subsequent turns the AI response already guides the conversation,
+        # so no extra prompt is needed.
+        if turn_num == 1:
+            ask_sound = ASK_PROMPT.get(language, ASK_PROMPT['en'])
+            log.info(f"Playing ask prompt | lang={language} sound={ask_sound}")
+            agi_verbose(f"[voice_agent] ASK PROMPT turn={turn_num} sound={ask_sound}")
+            agi_stream_file(ask_sound)
 
         # ── Record caller utterance ────────────────────────────────────────
         rec_result = agi_record_file(
@@ -496,9 +511,11 @@ def main():
             agi_exec('Playback', 'vm-sorry')
 
     else:
-        # for-loop completed all MAX_TURNS without a break
+        # for-loop completed all MAX_TURNS without a break.
+        # The dialplan plays vm-goodbye after AGI exits — do NOT play it here
+        # or the caller hears it twice.
         log.info(f"Max turns ({MAX_TURNS}) reached | session={session_id}")
-        agi_exec('Playback', 'vm-goodbye')
+        agi_verbose(f"[voice_agent] MAX TURNS REACHED session={session_id}")
 
     # ── End the session ────────────────────────────────────────────────────
     try:

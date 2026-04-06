@@ -1,0 +1,67 @@
+{
+  "_comment": [
+    "prompts.json — Default editable source for Asterisk audio prompt text.",
+    "",
+    "This file is loaded automatically by generate_prompts.py when no",
+    "--input-file is supplied. Edit the 'text' field of any prompt and",
+    "re-run generate_prompts.py — only changed prompts will be regenerated.",
+    "",
+    "Schema:",
+    "  version    : integer, format version (currently 1)",
+    "  defaults   : optional object; voice/model applied to all prompts",
+    "               unless overridden per-entry",
+    "  prompts[]  : list of prompt entries",
+    "",
+    "Per-entry fields:",
+    "  stem       : REQUIRED — filename stem (no extension); must match",
+    "               what voice_agent.agi references",
+    "  text       : REQUIRED — text sent to OpenAI TTS",
+    "  language   : optional hint for documentation (not used by the tool)",
+    "  version    : optional label for change tracking (not used by the tool)",
+    "  enabled    : optional boolean; set false to skip a prompt (default true)",
+    "  voice      : optional per-entry TTS voice override",
+    "  model      : optional per-entry TTS model override",
+    "",
+    "Caching:",
+    "  The tool computes a SHA-256 hash of text+voice+model+sample_rate+channels.",
+    "  A prompt is only regenerated when its hash changes or its files are missing.",
+    "  Use 'python generate_prompts.py --force' to bypass the cache entirely."
+  ],
+  "version": 1,
+  "defaults": {
+    "voice": "nova",
+    "model": "tts-1-hd"
+  },
+  "prompts": [
+    {
+      "stem": "language_menu",
+      "text": "اضغط 1 للعربية. Press 2 for English.",
+      "language": "bilingual",
+      "version": "2.0"
+    },
+    {
+      "stem": "please_ask_ar",
+      "text": "يرجى توضيح مشكلتك الآن.",
+      "language": "ar",
+      "version": "1.0"
+    },
+    {
+      "stem": "please_ask_en",
+      "text": "Please tell me your issue now.",
+      "language": "en",
+      "version": "1.0"
+    },
+    {
+      "stem": "please_wait_ar",
+      "text": "لحظة من فضلك.",
+      "language": "ar",
+      "version": "1.0"
+    },
+    {
+      "stem": "please_wait_en",
+      "text": "Just a moment, please.",
+      "language": "en",
+      "version": "1.0"
+    }
+  ]
+}

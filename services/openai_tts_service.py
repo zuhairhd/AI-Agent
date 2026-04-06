@@ -159,8 +159,8 @@ def synthesise(text: str, call_id: str = '', turn_id: str = '') -> str:
     # Request raw PCM from OpenAI (24 kHz, mono, 16-bit little-endian).
     # Using 'pcm' avoids any MP3 decoding and keeps the stdlib path fast.
     response = client.audio.speech.create(
-        model='tts-1',          # tts-1-hd for higher quality if latency permits
-        voice='alloy',          # neutral voice; change to 'nova', 'shimmer', etc.
+        model='tts-1-hd',          # tts-1-hd for higher quality if latency permits
+        voice='nova',          # neutral voice; change to 'nova', 'shimmer', etc.
         input=text,
         response_format='pcm',  # raw signed 16-bit PCM at 24 000 Hz
     )
