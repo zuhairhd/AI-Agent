@@ -42,6 +42,16 @@ SYSTEM_PROMPT = (
     "Otherwise do NOT include [TRANSFER]. Keep replies short and phone-friendly."
 )
 
+# Language-specific instructions injected after the base system prompt.
+_LANGUAGE_INSTRUCTION: dict[str, str] = {
+    'ar': (
+        "IMPORTANT: You MUST respond ONLY in Arabic (العربية). "
+        "Do not use any English words at all. "
+        "Do not mix languages under any circumstances."
+    ),
+    'en': '',  # no extra instruction needed for English
+}
+
 # Rule-based transfer keywords/patterns (checked against caller utterance)
 _TRANSFER_PATTERNS: list[tuple[str, str]] = [
     (r'\b(speak|talk)\s+(to\s+)?(a\s+)?(human|person|agent|representative|staff|operator)\b',
@@ -66,14 +76,21 @@ _LLM_TRANSFER_TOKEN = '[TRANSFER]'
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _build_messages(question: str, history: list[dict]) -> list[dict]:
+def _build_messages(question: str, history: list[dict], language: str = 'en') -> list[dict]:
     """
     Assemble the message list for the LLM call.
     history: list of {'role': 'user'|'assistant', 'content': str}
+    language: 'en' or 'ar' — injects strict language instruction when Arabic.
     vector_store_id is NOT used here; it is passed directly to the API tool config.
     """
     company = getattr(settings, 'COMPANY_NAME', 'Future Smart Support')
-    messages = [{'role': 'system', 'content': SYSTEM_PROMPT.format(company=company)}]
+    system_content = SYSTEM_PROMPT.format(company=company)
+
+    lang_instr = _LANGUAGE_INSTRUCTION.get(language, '')
+    if lang_instr:
+        system_content = f"{system_content}\n\n{lang_instr}"
+
+    messages = [{'role': 'system', 'content': system_content}]
     messages.extend(history[-10:])  # cap context at last 10 turns to save tokens
     messages.append({'role': 'user', 'content': question})
     return messages
@@ -114,6 +131,7 @@ def process_turn(
     question: str,
     history: list[dict],
     vector_store_id: str,
+    language: str = 'en',
 ) -> dict:
     """
     Run one conversation turn through the LLM (with RAG file_search).
@@ -123,6 +141,7 @@ def process_turn(
     question         : caller's current utterance (already transcribed)
     history          : previous turns as [{'role': ..., 'content': ...}]
     vector_store_id  : OpenAI vector store to search
+    language         : 'en' or 'ar' — controls response language
 
     Returns
     -------
@@ -136,18 +155,20 @@ def process_turn(
     transfer, reason = _rule_based_transfer(question)
     if transfer:
         logger.info(f"Transfer flagged by rule before LLM call: {reason}")
-        # Still generate a brief polite handoff message via LLM
         handoff_note = (
             "I understand you'd like to speak with a team member. "
             "Please hold while I transfer you now."
+            if language == 'en'
+            else
+            "سأقوم بتحويلك الآن إلى أحد أعضاء الفريق، يرجى الانتظار."
         )
         return {'answer': handoff_note, 'transfer': True, 'reason': reason}
 
     # ── 2. LLM call with file_search (RAG) ────────────────────────────────
     client = OpenAI(api_key=settings.OPENAI_API_KEY)
-    messages = _build_messages(question, history)
+    messages = _build_messages(question, history, language=language)
 
-    logger.debug(f"LLM request: question_len={len(question)} history_turns={len(history)}")
+    logger.debug(f"LLM request: question_len={len(question)} history_turns={len(history)} lang={language}")
 
     try:
         if vector_store_id:

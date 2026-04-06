@@ -174,12 +174,18 @@ def session_start(request):
 
     caller_number = data.get('caller_number', 'unknown').strip()
 
+    # Accept language from AGI (set by lang-select dialplan context).
+    # Only 'ar' and 'en' are supported; anything else falls back to 'en'.
+    lang_raw = data.get('language', 'en').strip().lower()
+    language = lang_raw if lang_raw in ('ar', 'en') else 'en'
+
     session = CallSession.objects.create(
         caller_number=caller_number,
+        language=language,
         status=CallSession.Status.ACTIVE,
     )
 
-    logger.info(f"[session_start] session={session.id} caller={caller_number}")
+    logger.info(f"[session_start] session={session.id} caller={caller_number} language={language}")
 
     return JsonResponse({'session_id': str(session.id), 'status': 'active'}, status=201)
 

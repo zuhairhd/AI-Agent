@@ -95,6 +95,8 @@ class CallSession(TimeStampedModel):
     failure_reason     = models.TextField(blank=True, null=True)
     # Incremented by each successfully completed turn
     total_turns        = models.PositiveIntegerField(default=0)
+    # Language selected by the caller in the bilingual menu ('en' or 'ar')
+    language           = models.CharField(max_length=8, default='en', db_index=True)
 
     class Meta:
         db_table = 'call_sessions'

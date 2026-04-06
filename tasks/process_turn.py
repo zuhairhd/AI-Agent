@@ -121,6 +121,7 @@ def process_turn(self, turn_id: str) -> dict:
             question=transcript,
             history=history,
             vector_store_id=vector_store_id,
+            language=session.language,
         )
     except Exception as exc:
         logger.error(f"[process_turn] LLM failed | turn={turn_id}: {exc}", exc_info=True)
