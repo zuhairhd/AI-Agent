@@ -1,16 +1,30 @@
+# Python
 venv/
-.venv/
 env/
-
+.venv/
 __pycache__/
 *.pyc
+*.pyo
 
+# Django
+db.sqlite3
+*.sqlite3
+media/
+staticfiles/
+
+# Node / Vue
+node_modules/
+dist/
+.vite/
+
+# Logs
 logs/
 *.log
 
-media/
-staticfiles/
-frontend/dist/
+# OS
+.DS_Store
+Thumbs.db
 
-.env
-.env.*
+# IDE
+.vscode/
+.idea/

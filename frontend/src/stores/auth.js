@@ -8,17 +8,33 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(username, password) {
     const res = await api.post('/api/portal/auth/login/', { username, password })
     user.value = res.data
+    return res.data
   }
 
   async function logout() {
-    await api.post('/api/portal/auth/logout/')
-    user.value = null
+    try {
+      await api.post('/api/portal/auth/logout/')
+    } catch (error) {
+      console.warn('Logout API failed, clearing local auth state anyway.', error)
+    } finally {
+      user.value = null
+    }
   }
 
   async function fetchMe() {
-    const res = await api.get('/api/portal/auth/me/')
-    user.value = res.data
+    try {
+      const res = await api.get('/api/portal/auth/me/')
+      user.value = res.data
+      return res.data
+    } catch (error) {
+      user.value = null
+      throw error
+    }
   }
 
-  return { user, login, logout, fetchMe }
+  function clearAuth() {
+    user.value = null
+  }
+
+  return { user, login, logout, fetchMe, clearAuth }
 })
