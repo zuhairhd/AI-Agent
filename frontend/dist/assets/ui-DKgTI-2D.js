@@ -1,0 +1,1 @@
+import{D as f,r as a}from"./index-DLzF_4QV.js";const c=f("ui",()=>{const t=a(!0),e=a([]);function s(){t.value=!t.value}function u(i,n="info",r=4e3){const o=Date.now();e.value.push({id:o,message:i,type:n}),setTimeout(()=>{e.value=e.value.filter(d=>d.id!==o)},r)}return{sidebarOpen:t,toasts:e,toggleSidebar:s,addToast:u}});export{c as u};

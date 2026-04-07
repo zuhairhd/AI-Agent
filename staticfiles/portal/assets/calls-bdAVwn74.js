@@ -1,0 +1,1 @@
+import{p as l}from"./index-D1MhWCai.js";const s=a=>l.get("/api/portal/calls/",{params:a}),o=a=>l.get(`/api/portal/calls/${a}/`),c=(a,t)=>l.patch(`/api/portal/calls/${a}/`,t);export{o as a,s as g,c as p};

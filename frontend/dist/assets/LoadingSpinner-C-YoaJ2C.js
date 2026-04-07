@@ -1,0 +1,1 @@
+import{_ as r,o,c as s,a as n}from"./index-DLzF_4QV.js";const t={},a={class:"flex items-center justify-center py-12"};function c(d,e){return o(),s("div",a,[...e[0]||(e[0]=[n("div",{class:"w-8 h-8 border-4 border-gray-200 border-t-fss-bronze rounded-full animate-spin",style:{"border-top-color":"var(--fss-bronze)"}},null,-1)])])}const l=r(t,[["render",c]]);export{l as L};
