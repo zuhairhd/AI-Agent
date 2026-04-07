@@ -1,0 +1,16 @@
+venv/
+.venv/
+env/
+
+__pycache__/
+*.pyc
+
+logs/
+*.log
+
+media/
+staticfiles/
+frontend/dist/
+
+.env
+.env.*
