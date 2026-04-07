@@ -1,1 +1,0 @@
-import{p as l}from"./index-DLzF_4QV.js";const p=a=>l.get("/api/portal/calls/",{params:a}),s=a=>l.get(`/api/portal/calls/${a}/`),o=(a,t)=>l.patch(`/api/portal/calls/${a}/`,t),c=a=>l.get(`/api/portal/calls/${a}/export/`,{responseType:"blob"}),r=a=>l.delete(`/api/portal/calls/${a}/delete/`);export{s as a,r as d,c as e,p as g,o as p};
