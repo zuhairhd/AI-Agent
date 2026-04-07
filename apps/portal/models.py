@@ -75,8 +75,12 @@ class FollowUp(TimeStampedModel):
         IN_PROGRESS = 'in_progress', 'In Progress'
         COMPLETED   = 'completed',   'Completed'
         CANCELLED   = 'cancelled',   'Cancelled'
+        ASSIGNED    = 'assigned',    'Assigned'
+        RESOLVED    = 'resolved',    'Resolved'
+        CLOSED      = 'closed',      'Closed'
 
     class Priority(models.TextChoices):
+        URGENT = 'urgent', 'Urgent'
         HIGH   = 'high',   'High'
         MEDIUM = 'medium', 'Medium'
         LOW    = 'low',    'Low'
@@ -102,6 +106,43 @@ class FollowUp(TimeStampedModel):
     notes        = models.TextField(blank=True)
     due_date     = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
+    # SLA tracking
+    sla_deadline  = models.DateTimeField(null=True, blank=True, db_index=True)
+    sla_breached  = models.BooleanField(default=False, db_index=True)
+    reminded_at   = models.DateTimeField(null=True, blank=True)
+    # Source of this follow-up
+    source = models.CharField(
+        max_length=20,
+        choices=[
+            ('rag_failure',    'RAG Failure'),
+            ('human_request',  'Human Request'),
+            ('unresolved',     'Unresolved Call'),
+            ('manual',         'Manual'),
+            ('sla_breach',     'SLA Breach'),
+        ],
+        default='manual',
+        db_index=True,
+    )
+
+    SLA_HOURS = {
+        'urgent': 1,
+        'high':   4,
+        'medium': 12,
+        'low':    24,
+    }
+
+    @staticmethod
+    def sla_hours_for(priority: str) -> int:
+        return FollowUp.SLA_HOURS.get(priority, 24)
+
+    def save(self, *args, **kwargs):
+        # Auto-set SLA deadline on first save
+        if not self.sla_deadline and self.priority:
+            from django.utils.timezone import now
+            from datetime import timedelta
+            hours = FollowUp.sla_hours_for(self.priority)
+            self.sla_deadline = now() + timedelta(hours=hours)
+        super().save(*args, **kwargs)
 
     class Meta:
         db_table = 'portal_followups'
@@ -140,3 +181,65 @@ class NotificationPreference(models.Model):
 
     def __str__(self):
         return f"NotifPref for {self.user.username}"
+
+
+class CallPrompt(models.Model):
+    """
+    A configurable voice prompt used in the Asterisk call flow.
+    Text is the source of truth; audio_path points to the generated WAV file.
+    Editing text and clicking Regenerate will update the audio via OpenAI TTS.
+    """
+    stem       = models.CharField(max_length=64, unique=True, db_index=True)
+    language   = models.CharField(max_length=8, default='en')
+    text       = models.TextField()
+    audio_path = models.CharField(max_length=512, blank=True)
+    audio_exists = models.BooleanField(default=False)
+    version    = models.PositiveIntegerField(default=1)
+    enabled    = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'portal_call_prompts'
+        ordering = ['stem']
+        verbose_name = 'Call Prompt'
+        verbose_name_plural = 'Call Prompts'
+
+    def __str__(self):
+        return f"[{self.language}] {self.stem} (v{self.version})"
+
+
+class FollowUpActivity(models.Model):
+    """Activity log for a FollowUp — every action is recorded here."""
+
+    id         = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    followup   = models.ForeignKey(
+        FollowUp, on_delete=models.CASCADE, related_name='activities'
+    )
+    user       = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='followup_activities',
+    )
+    action     = models.CharField(
+        max_length=64,
+        choices=[
+            ('assigned',       'Assigned'),
+            ('reassigned',     'Reassigned'),
+            ('claimed',        'Claimed'),
+            ('status_changed', 'Status Changed'),
+            ('note_added',     'Note Added'),
+            ('escalated',      'Escalated'),
+            ('resolved',       'Resolved'),
+            ('closed',         'Closed'),
+        ],
+    )
+    description = models.TextField(blank=True)
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'portal_followup_activities'
+        ordering = ['-created_at']
+        verbose_name = 'Follow-up Activity'
+        verbose_name_plural = 'Follow-up Activities'
+
+    def __str__(self):
+        return f"[{self.action}] on followup={self.followup_id} by {self.user_id}"

@@ -72,10 +72,12 @@ class CallSession(TimeStampedModel):
     Managed via POST /api/session/start/ and POST /api/session/<id>/end/.
     """
     class Status(models.TextChoices):
-        ACTIVE      = 'active',      'Active'
-        COMPLETED   = 'completed',   'Completed'
-        TRANSFERRED = 'transferred', 'Transferred to Human'
-        FAILED      = 'failed',      'Failed'
+        ACTIVE          = 'active',          'Active'
+        COMPLETED       = 'completed',       'Completed'
+        TRANSFERRED     = 'transferred',     'Transferred to Human'
+        FAILED          = 'failed',          'Failed'
+        ENDED_BY_CALLER = 'ended_by_caller', 'Ended by Caller'
+        ABANDONED       = 'abandoned',       'Abandoned'
 
     # Explicit UUID primary key — consistent with ConversationTurn and the migration.
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -83,6 +85,7 @@ class CallSession(TimeStampedModel):
     caller_number      = models.CharField(max_length=64, db_index=True)
     started_at         = models.DateTimeField(auto_now_add=True)
     ended_at           = models.DateTimeField(null=True, blank=True)
+    duration_seconds   = models.IntegerField(null=True, blank=True)
     status             = models.CharField(
         max_length=16, choices=Status.choices,
         default=Status.ACTIVE, db_index=True,
@@ -168,8 +171,10 @@ class ConversationTurn(models.Model):
         max_length=16, choices=Status.choices,
         default=Status.PENDING, db_index=True,
     )
-    error_message = models.TextField(blank=True, null=True)
-    created_at    = models.DateTimeField(auto_now_add=True)
+    error_message    = models.TextField(blank=True, null=True)
+    closing_detected = models.BooleanField(default=False)
+    rag_failure      = models.BooleanField(default=False)
+    created_at       = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'conversation_turns'

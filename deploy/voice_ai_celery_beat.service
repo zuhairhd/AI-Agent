@@ -1,0 +1,22 @@
+[Unit]
+Description=Voice AI Agent — Celery Beat Scheduler
+After=network.target redis.service postgresql.service
+
+[Service]
+Type=simple
+User=agent
+Group=agent
+WorkingDirectory=/home/agent/voice_ai_agent
+Environment="DJANGO_SETTINGS_MODULE=config.settings.base"
+ExecStart=/home/agent/voice_ai_agent/venv/bin/celery \
+    -A config beat \
+    --loglevel=info \
+    --scheduler django_celery_beat.schedulers:DatabaseScheduler
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=voice_ai_celery_beat
+
+[Install]
+WantedBy=multi-user.target

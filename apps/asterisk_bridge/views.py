@@ -228,11 +228,14 @@ def session_end(request, session_id: str):
         )
     failure_reason = data.get('failure_reason', '')
 
-    session.status = new_status
+    session.status   = new_status
     session.ended_at = timezone.now()
+    session.duration_seconds = int(
+        (session.ended_at - session.started_at).total_seconds()
+    )
     if failure_reason:
         session.failure_reason = failure_reason
-    session.save(update_fields=['status', 'ended_at', 'failure_reason'])
+    session.save(update_fields=['status', 'ended_at', 'duration_seconds', 'failure_reason'])
 
     logger.info(f"[session_end] session={session_id} final_status={new_status}")
 

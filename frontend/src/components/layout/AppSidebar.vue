@@ -46,12 +46,14 @@ import { useRoute } from 'vue-router'
 
 const route = useRoute()
 const navItems = [
-  { label: 'Dashboard',   to: '/portal/dashboard', icon: '📊' },
-  { label: 'Calls',       to: '/portal/calls',     icon: '📞' },
-  { label: 'Alerts',      to: '/portal/alerts',    icon: '🔔' },
-  { label: 'Follow-ups',  to: '/portal/followups', icon: '📋' },
-  { label: 'Reports',     to: '/portal/reports',   icon: '📈' },
-  { label: 'Settings',    to: '/portal/settings',  icon: '⚙️' },
+  { label: 'Dashboard',      to: '/portal/dashboard',  icon: '📊' },
+  { label: 'Calls',          to: '/portal/calls',      icon: '📞' },
+  { label: 'Alerts',         to: '/portal/alerts',     icon: '🔔' },
+  { label: 'Follow-ups',     to: '/portal/followups',  icon: '📋' },
+  { label: 'Knowledge Base', to: '/portal/knowledge',  icon: '📚' },
+  { label: 'Prompts',        to: '/portal/prompts',    icon: '🎙️' },
+  { label: 'Reports',        to: '/portal/reports',    icon: '📈' },
+  { label: 'Settings',       to: '/portal/settings',   icon: '⚙️' },
 ]
 const isActive = (to) => route.path.startsWith(to)
 </script>

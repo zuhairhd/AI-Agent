@@ -3,17 +3,21 @@ LLM service for multi-turn voice agent.
 
 Public API
 ----------
-process_turn(question: str, history: list[dict], vector_store_id: str)
-    -> dict with keys:
-        answer   : str   — the assistant reply text
-        transfer : bool  — True if a human handoff should be triggered
-        reason   : str   — human-readable reason for transfer (or '')
+process_turn(question, history, vector_store_id, language)
+    -> dict:
+        answer         : str   — the assistant reply text
+        transfer       : bool  — True if a human handoff should be triggered
+        reason         : str   — reason for transfer (or '')
+        closing        : bool  — True if caller said goodbye / thank you
+        rag_no_answer  : bool  — True if RAG could not find an answer
 
 Hybrid transfer detection
 -------------------------
 1. Rule-based checks run FIRST on the raw caller text (fast, no extra API cost).
-2. If no rule fires, the LLM reply is parsed for a structured transfer flag.
-   The system prompt asks the model to append [TRANSFER] if handoff is needed.
+2. If no rule fires, the LLM reply is parsed for structured tokens:
+   [TRANSFER] — handoff needed
+   [CLOSING]  — caller said goodbye; terminate politely
+   [NO_ANSWER]— RAG found nothing useful
 """
 
 import logging
@@ -33,56 +37,65 @@ SYSTEM_PROMPT = (
     "You speak professionally, clearly, and briefly — you are on a phone call. "
     "Help callers with support-related requests. "
     "Answer only from the company knowledge base when possible. "
+    "If the knowledge base has no relevant information, append [NO_ANSWER] on its own line at the end. "
     "If the user explicitly asks for a human agent, expresses frustration, "
     "requests something you cannot handle safely or confidently, has a billing "
-    "dispute, or has an urgent complaint, append the exact token [TRANSFER] on "
-    "its own line at the very end of your reply and briefly state the reason "
-    "after a colon, e.g.:\n"
-    "[TRANSFER]: user requested human agent\n\n"
-    "Otherwise do NOT include [TRANSFER]. Keep replies short and phone-friendly."
+    "dispute, or has an urgent complaint, append [TRANSFER]: <reason> on its own line. "
+    "If the caller says goodbye, thank you, or clearly ends the conversation, "
+    "respond warmly and append [CLOSING] on its own line. "
+    "Otherwise do NOT include any of these tokens. Keep replies short and phone-friendly."
 )
 
-# Language-specific instructions injected after the base system prompt.
-_LANGUAGE_INSTRUCTION: dict[str, str] = {
+_LANGUAGE_INSTRUCTION: dict = {
     'ar': (
         "IMPORTANT: You MUST respond ONLY in Arabic (العربية). "
         "Do not use any English words at all. "
         "Do not mix languages under any circumstances."
     ),
-    'en': '',  # no extra instruction needed for English
+    'en': '',
 }
 
-# Rule-based transfer keywords/patterns (checked against caller utterance)
-_TRANSFER_PATTERNS: list[tuple[str, str]] = [
+# Closing phrases — detected rule-based before LLM call
+_CLOSING_PATTERNS = [
+    r'\b(thank\s+you|thanks|goodbye|good\s*bye|bye|see\s+you|that\'?s\s+all|no\s+more\s+questions?|i\'?m\s+done)\b',
+    r'\bشكراً?\b',
+    r'\bمع\s+السلامة\b',
+    r'\bوداعاً?\b',
+]
+_CLOSING_RE = [re.compile(p, re.I) for p in _CLOSING_PATTERNS]
+
+# Transfer keyword patterns
+_TRANSFER_PATTERNS = [
     (r'\b(speak|talk)\s+(to\s+)?(a\s+)?(human|person|agent|representative|staff|operator)\b',
      'explicit_request:human'),
     (r'\b(transfer|connect)\s+me\b', 'explicit_request:transfer'),
     (r'\b(manager|supervisor)\b', 'explicit_request:supervisor'),
     (r'\b(this\s+is\s+)?urgent\b', 'urgency:urgent'),
     (r'\b(billing\s+dispute|charge\s+dispute|wrong\s+charge)\b', 'billing_dispute'),
-    # Explicit grouping so alternation does not leak outside the \b boundary
     (r'\b(very\s+)?(angry|furious|frustrated|unacceptable)\b', 'frustration:angry'),
-    # Literal apostrophe — do NOT use . here (it would match any char)
     (r"\byou're\s+(useless|stupid|not\s+helpful)\b", 'frustration:insult'),
 ]
-
 _TRANSFER_RE = [(re.compile(p, re.I), reason) for p, reason in _TRANSFER_PATTERNS]
 
-# Sentinel the model appends when it decides to transfer
-_LLM_TRANSFER_TOKEN = '[TRANSFER]'
+_LLM_TRANSFER_TOKEN  = '[TRANSFER]'
+_LLM_CLOSING_TOKEN   = '[CLOSING]'
+_LLM_NO_ANSWER_TOKEN = '[NO_ANSWER]'
+
+# Phrases the model uses when RAG has no answer (rule-based check as backup)
+_NO_ANSWER_PHRASES = [
+    "no confirmed information",
+    "not find any information",
+    "cannot find",
+    "no relevant",
+    "not in the knowledge base",
+]
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _build_messages(question: str, history: list[dict], language: str = 'en') -> list[dict]:
-    """
-    Assemble the message list for the LLM call.
-    history: list of {'role': 'user'|'assistant', 'content': str}
-    language: 'en' or 'ar' — injects strict language instruction when Arabic.
-    vector_store_id is NOT used here; it is passed directly to the API tool config.
-    """
+def _build_messages(question: str, history: list, language: str = 'en') -> list:
     company = getattr(settings, 'COMPANY_NAME', 'Future Smart Support')
     system_content = SYSTEM_PROMPT.format(company=company)
 
@@ -91,16 +104,12 @@ def _build_messages(question: str, history: list[dict], language: str = 'en') ->
         system_content = f"{system_content}\n\n{lang_instr}"
 
     messages = [{'role': 'system', 'content': system_content}]
-    messages.extend(history[-10:])  # cap context at last 10 turns to save tokens
+    messages.extend(history[-10:])
     messages.append({'role': 'user', 'content': question})
     return messages
 
 
-def _rule_based_transfer(caller_text: str) -> tuple[bool, str]:
-    """
-    Check caller text against keyword rules.
-    Returns (transfer_needed, reason).
-    """
+def _rule_based_transfer(caller_text: str) -> tuple:
     for pattern, reason in _TRANSFER_RE:
         if pattern.search(caller_text):
             logger.info(f"Rule-based transfer triggered: {reason!r}")
@@ -108,19 +117,48 @@ def _rule_based_transfer(caller_text: str) -> tuple[bool, str]:
     return False, ''
 
 
-def _parse_llm_transfer(reply: str) -> tuple[str, bool, str]:
+def _rule_based_closing(caller_text: str) -> bool:
+    for pattern in _CLOSING_RE:
+        if pattern.search(caller_text):
+            logger.info("Rule-based closing phrase detected.")
+            return True
+    return False
+
+
+def _parse_llm_tokens(reply: str) -> tuple:
     """
-    Strip [TRANSFER]: reason from the end of the LLM reply if present.
-    Returns (clean_reply, transfer_needed, reason).
+    Strip special LLM tokens from reply.
+    Returns (clean_reply, transfer, transfer_reason, closing, no_answer).
     """
     lines = reply.strip().splitlines()
-    if lines and lines[-1].startswith(_LLM_TRANSFER_TOKEN):
-        # e.g. "[TRANSFER]: user requested human agent"
-        token_line = lines[-1]
-        reason = token_line[len(_LLM_TRANSFER_TOKEN):].lstrip(':').strip()
-        clean = '\n'.join(lines[:-1]).strip()
-        return clean, True, f'llm_flag:{reason}'
-    return reply, False, ''
+    transfer = False
+    transfer_reason = ''
+    closing = False
+    no_answer = False
+    clean_lines = []
+
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith(_LLM_TRANSFER_TOKEN):
+            transfer = True
+            transfer_reason = stripped[len(_LLM_TRANSFER_TOKEN):].lstrip(':').strip()
+            transfer_reason = f'llm_flag:{transfer_reason}' if transfer_reason else 'llm_flag'
+        elif stripped == _LLM_CLOSING_TOKEN:
+            closing = True
+        elif stripped == _LLM_NO_ANSWER_TOKEN:
+            no_answer = True
+        else:
+            clean_lines.append(line)
+
+    clean = '\n'.join(clean_lines).strip()
+
+    # Backup: detect no-answer from text heuristic
+    if not no_answer and clean:
+        low = clean.lower()
+        if any(phrase in low for phrase in _NO_ANSWER_PHRASES):
+            no_answer = True
+
+    return clean, transfer, transfer_reason, closing, no_answer
 
 
 # ---------------------------------------------------------------------------
@@ -129,32 +167,41 @@ def _parse_llm_transfer(reply: str) -> tuple[str, bool, str]:
 
 def process_turn(
     question: str,
-    history: list[dict],
+    history: list,
     vector_store_id: str,
     language: str = 'en',
 ) -> dict:
     """
     Run one conversation turn through the LLM (with RAG file_search).
 
-    Parameters
-    ----------
-    question         : caller's current utterance (already transcribed)
-    history          : previous turns as [{'role': ..., 'content': ...}]
-    vector_store_id  : OpenAI vector store to search
-    language         : 'en' or 'ar' — controls response language
-
     Returns
     -------
     {
-        'answer'   : str,
-        'transfer' : bool,
-        'reason'   : str,   # empty if no transfer
+        'answer'        : str,
+        'transfer'      : bool,
+        'reason'        : str,
+        'closing'       : bool,   # caller ended the conversation
+        'rag_no_answer' : bool,   # RAG could not find relevant info
     }
     """
-    # ── 1. Rule-based transfer check (fast path, no API cost) ──────────────
+    # ── 1. Rule-based closing (fast exit) ─────────────────────────────────
+    if _rule_based_closing(question):
+        farewell = (
+            "Thank you for calling Future Smart Support. Have a great day!"
+            if language == 'en'
+            else "شكراً لاتصالك بـ Future Smart Support. أتمنى لك يوماً رائعاً!"
+        )
+        return {
+            'answer':        farewell,
+            'transfer':      False,
+            'reason':        '',
+            'closing':       True,
+            'rag_no_answer': False,
+        }
+
+    # ── 2. Rule-based transfer (fast exit) ─────────────────────────────────
     transfer, reason = _rule_based_transfer(question)
     if transfer:
-        logger.info(f"Transfer flagged by rule before LLM call: {reason}")
         handoff_note = (
             "I understand you'd like to speak with a team member. "
             "Please hold while I transfer you now."
@@ -162,19 +209,25 @@ def process_turn(
             else
             "سأقوم بتحويلك الآن إلى أحد أعضاء الفريق، يرجى الانتظار."
         )
-        return {'answer': handoff_note, 'transfer': True, 'reason': reason}
+        return {
+            'answer':        handoff_note,
+            'transfer':      True,
+            'reason':        reason,
+            'closing':       False,
+            'rag_no_answer': False,
+        }
 
-    # ── 2. LLM call with file_search (RAG) ────────────────────────────────
+    # ── 3. LLM call with file_search (RAG) ────────────────────────────────
     client = OpenAI(api_key=settings.OPENAI_API_KEY)
     messages = _build_messages(question, history, language=language)
 
-    logger.debug(f"LLM request: question_len={len(question)} history_turns={len(history)} lang={language}")
+    logger.debug(
+        f"LLM request: question_len={len(question)} "
+        f"history_turns={len(history)} lang={language}"
+    )
 
     try:
         if vector_store_id:
-            # OpenAI Responses API (sdk >= 1.x).
-            # `input` accepts a list of message dicts with role/content.
-            # `tools` carries the file_search tool configuration.
             response = client.responses.create(
                 model='gpt-4o-mini',
                 input=messages,
@@ -183,10 +236,8 @@ def process_turn(
                     'vector_store_ids': [vector_store_id],
                 }],
             )
-            # response.output_text is the text of the first output message item.
             raw_reply = response.output_text.strip()
         else:
-            # Fallback: plain Chat Completions when no vector store is configured.
             logger.warning("No OPENAI_VECTOR_STORE_ID — using plain chat completion.")
             completion = client.chat.completions.create(
                 model='gpt-4o-mini',
@@ -199,16 +250,25 @@ def process_turn(
         logger.error(f"LLM call failed: {exc}", exc_info=True)
         raise
 
-    # ── 3. Parse LLM transfer token from reply ────────────────────────────
-    clean_reply, llm_transfer, llm_reason = _parse_llm_transfer(raw_reply)
+    # ── 4. Parse tokens ─────────────────────────────────────────────────────
+    clean_reply, llm_transfer, llm_reason, closing, no_answer = _parse_llm_tokens(raw_reply)
 
     if llm_transfer:
         logger.info(f"Transfer flagged by LLM: {llm_reason}")
+    if closing:
+        logger.info("Closing detected by LLM token.")
+    if no_answer:
+        logger.info("RAG no-answer detected.")
 
-    logger.debug(f"LLM reply: len={len(clean_reply)} transfer={llm_transfer}")
+    logger.debug(
+        f"LLM reply: len={len(clean_reply)} transfer={llm_transfer} "
+        f"closing={closing} no_answer={no_answer}"
+    )
 
     return {
-        'answer':   clean_reply,
-        'transfer': llm_transfer,
-        'reason':   llm_reason,
+        'answer':        clean_reply,
+        'transfer':      llm_transfer,
+        'reason':        llm_reason,
+        'closing':       closing,
+        'rag_no_answer': no_answer,
     }

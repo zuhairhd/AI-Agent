@@ -14,7 +14,7 @@
             <h1 class="text-xl font-bold text-gray-900">{{ call.caller_number }}</h1>
             <p class="text-sm text-gray-500 mt-1">{{ fmt(call.started_at) }} · {{ fmtDur(call.duration_seconds) }}</p>
           </div>
-          <div class="flex gap-2">
+          <div class="flex gap-2 flex-wrap">
             <StatusBadge :status="call.status" />
             <span v-if="call.needs_followup" class="bg-orange-100 text-orange-700 text-xs px-2.5 py-1 rounded-full font-semibold">
               Follow-up Needed
@@ -36,6 +36,18 @@
           <span class="bg-gray-100 text-gray-600 text-xs px-2.5 py-1 rounded-full">
             Turns: {{ call.total_turns }}
           </span>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-100">
+          <button @click="doExport"
+                  class="px-3 py-1.5 text-sm rounded-lg border border-gray-200 text-gray-700 hover:border-blue-300 transition flex items-center gap-1">
+            ⬇ Export ZIP
+          </button>
+          <button @click="confirmDeleteModal = true"
+                  class="px-3 py-1.5 text-sm rounded-lg border border-red-100 text-red-500 hover:bg-red-50 transition">
+            🗑 Delete Call
+          </button>
         </div>
       </div>
 
@@ -65,13 +77,27 @@
     </template>
 
     <EmptyState v-else title="Call not found" message="This call session could not be loaded." />
+
+    <!-- Delete confirmation modal -->
+    <div v-if="confirmDeleteModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm">
+        <h3 class="font-semibold text-gray-900 mb-2">Delete Call</h3>
+        <p class="text-sm text-gray-600 mb-4">
+          This will permanently delete this call session and all associated audio files. This cannot be undone.
+        </p>
+        <div class="flex justify-end gap-3">
+          <button @click="confirmDeleteModal = false" class="px-4 py-2 text-sm rounded-lg border border-gray-200 text-gray-700">Cancel</button>
+          <button @click="doDelete" class="px-4 py-2 text-sm text-white rounded-lg bg-red-500 hover:bg-red-600 transition">Delete</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
-import { getCall, patchCall } from '@/api/calls'
+import { useRoute, useRouter } from 'vue-router'
+import { getCall, patchCall, exportCall, deleteCall } from '@/api/calls'
 import { useUiStore } from '@/stores/ui'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import TranscriptViewer from '@/components/ui/TranscriptViewer.vue'
@@ -79,10 +105,12 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 
 const route   = useRoute()
+const router  = useRouter()
 const uiStore = useUiStore()
 const call    = ref(null)
 const loading = ref(true)
 const notes   = ref('')
+const confirmDeleteModal = ref(false)
 
 onMounted(async () => {
   try {
@@ -104,6 +132,27 @@ async function toggleFollowup() {
     call.value.needs_followup = res.data.needs_followup
     uiStore.addToast('Follow-up flag updated.', 'success')
   } catch { uiStore.addToast('Failed to update flag.', 'error') }
+}
+
+async function doExport() {
+  try {
+    const res = await exportCall(call.value.id)
+    const url = URL.createObjectURL(res.data)
+    const a   = document.createElement('a')
+    a.href    = url
+    a.download = `call_${call.value.caller_number}_${call.value.id}.zip`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch { uiStore.addToast('Export failed.', 'error') }
+}
+
+async function doDelete() {
+  confirmDeleteModal.value = false
+  try {
+    await deleteCall(call.value.id)
+    uiStore.addToast('Call deleted.', 'success')
+    router.push('/portal/calls')
+  } catch { uiStore.addToast('Delete failed.', 'error') }
 }
 
 function fmt(s) { return s ? new Date(s).toLocaleString() : '—' }

@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from apps.voice_calls.models import CallSession, ConversationTurn
-from .models import Alert, FollowUp, NotificationPreference
+from .models import Alert, FollowUp, NotificationPreference, CallPrompt, FollowUpActivity
 
 User = get_user_model()
 
@@ -20,7 +20,9 @@ class ConversationTurnSerializer(serializers.ModelSerializer):
             'audio_input_path', 'transcript_text',
             'ai_response_text', 'ai_confidence_score',
             'audio_response_path', 'audio_response_exists',
-            'transfer_needed', 'transfer_reason', 'error_message',
+            'transfer_needed', 'transfer_reason',
+            'closing_detected', 'rag_failure',
+            'error_message',
             'transcription_started_at', 'transcription_completed_at',
             'llm_started_at', 'llm_completed_at',
             'tts_started_at', 'tts_completed_at',
@@ -29,8 +31,7 @@ class ConversationTurnSerializer(serializers.ModelSerializer):
 
 
 class CallSessionListSerializer(serializers.ModelSerializer):
-    duration_seconds = serializers.SerializerMethodField()
-    avg_confidence   = serializers.SerializerMethodField()
+    avg_confidence = serializers.SerializerMethodField()
 
     class Meta:
         model  = CallSession
@@ -40,20 +41,13 @@ class CallSessionListSerializer(serializers.ModelSerializer):
             'needs_followup', 'duration_seconds', 'avg_confidence',
         )
 
-    def get_duration_seconds(self, obj):
-        if obj.started_at and obj.ended_at:
-            return int((obj.ended_at - obj.started_at).total_seconds())
-        return None
-
     def get_avg_confidence(self, obj):
         scores = [
             t.ai_confidence_score
             for t in obj.turns.all()
             if t.ai_confidence_score is not None
         ]
-        if scores:
-            return round(sum(scores) / len(scores), 3)
-        return None
+        return round(sum(scores) / len(scores), 3) if scores else None
 
 
 class CallSessionDetailSerializer(CallSessionListSerializer):
@@ -85,21 +79,57 @@ class AlertSerializer(serializers.ModelSerializer):
         return obj.session.caller_number if obj.session else None
 
 
+class FollowUpActivitySerializer(serializers.ModelSerializer):
+    user = UserBriefSerializer(read_only=True)
+
+    class Meta:
+        model  = FollowUpActivity
+        fields = ('id', 'action', 'description', 'user', 'created_at')
+
+
 class FollowUpSerializer(serializers.ModelSerializer):
-    assigned_to = UserBriefSerializer(read_only=True)
+    assigned_to    = UserBriefSerializer(read_only=True)
     session_caller = serializers.SerializerMethodField()
+    sla_pct        = serializers.SerializerMethodField()
+    sla_remaining  = serializers.SerializerMethodField()
+    activities     = FollowUpActivitySerializer(many=True, read_only=True)
 
     class Meta:
         model  = FollowUp
         fields = (
             'id', 'session', 'session_caller', 'alert',
-            'status', 'priority', 'assigned_to',
+            'status', 'priority', 'source', 'assigned_to',
             'notes', 'due_date', 'completed_at',
+            'sla_deadline', 'sla_breached', 'sla_pct', 'sla_remaining',
+            'activities',
             'created_at', 'updated_at',
         )
 
     def get_session_caller(self, obj):
         return obj.session.caller_number if obj.session else None
+
+    def get_sla_pct(self, obj):
+        if not obj.sla_deadline or not obj.created_at:
+            return None
+        from django.utils.timezone import now
+        total   = (obj.sla_deadline - obj.created_at).total_seconds()
+        elapsed = (now() - obj.created_at).total_seconds()
+        return min(round(elapsed / total * 100, 1), 100) if total > 0 else 100
+
+    def get_sla_remaining(self, obj):
+        if not obj.sla_deadline:
+            return None
+        from django.utils.timezone import now
+        remaining = (obj.sla_deadline - now()).total_seconds()
+        return max(round(remaining), 0)
+
+
+class CallPromptSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = CallPrompt
+        fields = ('id', 'stem', 'language', 'text', 'audio_path', 'audio_exists',
+                  'version', 'enabled', 'updated_at')
+        read_only_fields = ('audio_exists', 'version', 'updated_at')
 
 
 class NotificationPreferenceSerializer(serializers.ModelSerializer):

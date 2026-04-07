@@ -197,3 +197,21 @@ LOGGING = {
         'watchdog_runner': {'handlers': ['console', 'file'], 'level': 'DEBUG', 'propagate': False},
     },
 }
+
+# ---------------------------------------------------------------------------
+# Celery Beat Schedule
+# ---------------------------------------------------------------------------
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    # Check SLA deadlines every 15 minutes
+    'check-sla-deadlines': {
+        'task': 'tasks.sla_tasks.check_sla_deadlines',
+        'schedule': crontab(minute='*/15'),
+    },
+    # Fix sessions stuck in "active" state (every 30 minutes)
+    'fix-stuck-active-sessions': {
+        'task': 'tasks.sla_tasks.fix_stuck_active_sessions',
+        'schedule': crontab(minute='*/30'),
+    },
+}
