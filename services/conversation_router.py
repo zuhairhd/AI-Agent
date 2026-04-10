@@ -24,7 +24,7 @@ from services.intent_engine import detect_intent, normalize_language
 
 logger = logging.getLogger(__name__)
 
-MODEL_NAME = "gpt-5.4"
+MODEL_NAME = "gpt-4o"
 
 
 # ---------------------------------------------------------------------------

@@ -254,6 +254,27 @@ def _create_follow_up_if_needed(
             f"type={follow_up_type}"
         )
 
+        # Fire email alert so admin is notified immediately
+        try:
+            from apps.portal.models import Alert
+            from apps.portal.tasks import send_alert_notification
+
+            alert, created = Alert.objects.get_or_create(
+                session=session,
+                alert_type=Alert.AlertType.HUMAN_REQUESTED,
+                defaults=dict(
+                    severity=Alert.Severity.MEDIUM,
+                    title=f"Follow-up required — {getattr(session, 'caller_number', 'unknown')}",
+                    description=f"[{follow_up_type}] {note[:300]}",
+                    send_email=True,
+                ),
+            )
+            if created:
+                send_alert_notification.delay(str(alert.id))
+                logger.info(f"[process_turn] follow-up alert queued | session={session.id}")
+        except Exception as email_exc:
+            logger.warning(f"[process_turn] follow-up alert failed: {email_exc}", exc_info=True)
+
     except Exception as exc:
         logger.warning(f"[process_turn] follow-up creation failed: {exc}", exc_info=True)
 
@@ -411,11 +432,13 @@ def process_turn(self, turn_id: str) -> dict:
     history = _build_history(session)
 
     if intent_data.get("closing"):
+        from django.conf import settings as _settings
+        _company = getattr(_settings, 'COMPANY_NAME', 'us')
         result: Dict[str, Any] = {
             "answer": (
-                "شكرًا لاتصالك بـ Future Smart Support. مع السلامة."
+                f"شكرًا لاتصالك بـ {_company}. مع السلامة."
                 if session_language == "ar"
-                else "Thank you for calling Future Smart Support. Goodbye."
+                else f"Thank you for calling {_company}. Goodbye."
             ),
             "transfer": False,
             "reason": "",

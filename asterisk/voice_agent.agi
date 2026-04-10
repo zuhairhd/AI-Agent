@@ -362,6 +362,10 @@ def main():
     log.info(f"Session started | session_id={session_id} language={language}")
     agi_verbose(f"[voice_agent] SESSION STARTED session_id={session_id} lang={language}")
 
+    # Expose session_id as a dialplan channel variable so the h-extension
+    # hangup handler can read it and POST to /api/session/<id>/hangup/.
+    agi_set_variable('SESSION_ID', session_id)
+
     # ── Ensure recordings directory exists ─────────────────────────────────
     try:
         os.makedirs(RECORDINGS_DIR, exist_ok=True)

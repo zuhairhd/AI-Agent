@@ -14,8 +14,7 @@ from django.utils.timezone import now
 logger = logging.getLogger(__name__)
 
 
-# @shared_task(name='tasks.check_sla_deadlines')
-@shared_task(name='tasks.sla_tasks.fix_stuck_active_sessions')
+@shared_task(name='tasks.sla_tasks.check_sla_deadlines')
 def check_sla_deadlines() -> dict:
     """
     1. Mark overdue FollowUps as sla_breached.

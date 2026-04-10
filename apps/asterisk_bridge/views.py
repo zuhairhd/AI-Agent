@@ -359,6 +359,70 @@ def turn_status(request, turn_id: str):
 
 
 # ---------------------------------------------------------------------------
+# Hangup notification — called by Asterisk h-extension on caller BYE
+# ---------------------------------------------------------------------------
+
+@csrf_exempt
+@require_POST
+def session_hangup(request, session_id: str):
+    """
+    POST /api/session/<session_id>/hangup/
+    Called by the Asterisk h-extension (hangup handler) when a caller
+    disconnects mid-call.  Marks the session as ended_by_caller only if
+    it is still active — avoids overwriting a clean session_end that
+    already ran.
+
+    Body (JSON, all optional):
+        failure_reason: str
+    """
+    if not _verify_secret(request):
+        return JsonResponse({'error': 'Unauthorized'}, status=401)
+
+    try:
+        session = CallSession.objects.get(id=session_id)
+    except CallSession.DoesNotExist:
+        logger.warning(f"[session_hangup] unknown session_id={session_id!r}")
+        return JsonResponse({'error': 'Session not found.'}, status=404)
+
+    # Only act if the session is still active; if session_end already ran
+    # (normal flow) we leave the status alone.
+    if session.status != CallSession.Status.ACTIVE:
+        logger.info(
+            f"[session_hangup] session={session_id} already "
+            f"finalized as {session.status!r} — no-op"
+        )
+        return JsonResponse({'session_id': session_id, 'status': session.status})
+
+    try:
+        data = json.loads(request.body) if request.body else {}
+    except json.JSONDecodeError:
+        data = {}
+
+    from django.utils import timezone
+    ended = timezone.now()
+    duration = int((ended - session.started_at).total_seconds())
+
+    session.status           = CallSession.Status.ENDED_BY_CALLER
+    session.ended_at         = ended
+    session.duration_seconds = duration
+    if data.get('failure_reason'):
+        session.failure_reason = data['failure_reason']
+    session.save(update_fields=[
+        'status', 'ended_at', 'duration_seconds', 'failure_reason',
+    ])
+
+    logger.info(
+        f"[session_hangup] session={session_id} → ended_by_caller "
+        f"duration={duration}s"
+    )
+    return JsonResponse({
+        'session_id': session_id,
+        'status': session.status,
+        'duration_seconds': duration,
+    })
+
+
+# ---------------------------------------------------------------------------
 # Health check
 # ---------------------------------------------------------------------------
 

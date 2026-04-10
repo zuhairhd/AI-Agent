@@ -1,28 +1,36 @@
 #!/bin/bash
-# ============================================================
-# Asterisk AGI Script — Notify Django of new call recording
-# Place this in /var/lib/asterisk/agi-bin/
-# chmod +x django_notify.sh
-# ============================================================
+# =============================================================================
+# hangup_notify.sh — called by Asterisk h-extension on caller disconnect
+#
+# Usage (from extensions.conf):
+#   exten => h,1,System(/var/lib/asterisk/agi-bin/django_notify.sh ${SESSION_ID})
+#
+# If SESSION_ID is empty (call dropped before AGI started a session),
+# the script exits silently — nothing to update.
+# =============================================================================
 
-CALLER_NUMBER="$1"
-AUDIO_FILE_PATH="$2"
-DJANGO_URL="http://localhost:8000/api/call/"
-ASTERISK_SECRET="your-shared-secret-here"
+SESSION_ID="$1"
+DJANGO_URL="${DJANGO_API_BASE_URL:-http://127.0.0.1:8000}"
+ASTERISK_SECRET="${ASTERISK_SECRET:-}"
 
-# Log to Asterisk
-echo "VERBOSE \"Notifying Django: caller=${CALLER_NUMBER} file=${AUDIO_FILE_PATH}\" 1"
+if [ -z "${SESSION_ID}" ]; then
+  logger -t asterisk-hangup "SESSION_ID empty — no backend update needed"
+  exit 0
+fi
 
-# Send to Django
-RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
-  -X POST "${DJANGO_URL}" \
+ENDPOINT="${DJANGO_URL}/api/session/${SESSION_ID}/hangup/"
+
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+  -X POST "${ENDPOINT}" \
   -H "Content-Type: application/json" \
   -H "X-Asterisk-Secret: ${ASTERISK_SECRET}" \
-  -d "{\"caller_number\": \"${CALLER_NUMBER}\", \"audio_file_path\": \"${AUDIO_FILE_PATH}\"}" \
+  -d '{}' \
   --max-time 10)
 
-echo "VERBOSE \"Django responded: HTTP ${RESPONSE}\" 1"
+logger -t asterisk-hangup \
+  "session=${SESSION_ID} endpoint=${ENDPOINT} http=${HTTP_CODE}"
 
-if [ "${RESPONSE}" != "202" ]; then
-  echo "VERBOSE \"Warning: Django returned non-202 status: ${RESPONSE}\" 1"
+if [ "${HTTP_CODE}" != "200" ]; then
+  logger -t asterisk-hangup \
+    "WARNING: hangup notify returned HTTP ${HTTP_CODE} for session=${SESSION_ID}"
 fi

@@ -168,6 +168,9 @@ class NotificationPreference(models.Model):
     # Override delivery email; falls back to user.email if blank
     notify_email  = models.EmailField(blank=True)
 
+    # Send an email for every completed call, not just alerts/follow-ups
+    notify_all_calls = models.BooleanField(default=False)
+
     # Future channel stubs — stored now, not yet functional
     sms_enabled      = models.BooleanField(default=False)
     sms_number       = models.CharField(max_length=32, blank=True)

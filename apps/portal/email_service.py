@@ -46,8 +46,9 @@ class EmailChannel(NotificationChannel):
         html_body = render_to_string('portal/email/alert_notification.html', context)
         text_body = render_to_string('portal/email/alert_notification.txt',  context)
 
+        company = getattr(settings, 'COMPANY_NAME', 'Alert')
         send_mail(
-            subject=f"[FSS Alert] {alert.title}",
+            subject=f"[{company}] {alert.title}",
             message=text_body,
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=recipients,
