@@ -1,181 +1,397 @@
 """
-OpenAI Text-to-Speech service.
+OpenAI TTS service.
 
-Public API:
-    synthesise(text: str, call_id: str) -> str
+Goals
+-----
+- Generate phone-friendly Arabic/English TTS
+- Keep Arabic pronunciation cleaner by normalizing text first
+- Split long replies into smaller chunks to avoid awkward long synthesis
+- Output Asterisk-ready WAV PCM 8kHz mono 16-bit
+- Keep the public API simple:
 
-Converts answer text to speech and saves a WAV file suitable for Asterisk
-playback under:
-    <CALL_RESPONSES_ROOT>/<call_id>.wav
+    synthesise(text: str, turn_id: str) -> str
 
-Asterisk requirements met:
-    • Mono (1 channel)
-    • 8 000 Hz sample rate
-    • 16-bit signed PCM (linear)
-    • RIFF/WAV container
+Config (optional)
+-----------------
+You may define any of these in Django settings or .env:
 
-OpenAI TTS returns MP3 by default.  We convert it to the correct WAV format
-using the `wave` + `audioop` modules from the Python standard library — no
-external binaries (ffmpeg, sox) required.  If the environment has `pydub`
-installed it will be used as a faster alternative, but it is not required.
+OPENAI_TTS_MODEL=gpt-4o-mini-tts
+OPENAI_TTS_VOICE=alloy
+OPENAI_TTS_VOICE_AR=alloy
+OPENAI_TTS_VOICE_EN=alloy
+OPENAI_TTS_MAX_CHARS_AR=140
+OPENAI_TTS_MAX_CHARS_EN=180
+OPENAI_TTS_SPEED=1.0
+MEDIA_ROOT=/path/to/media
+
+This service writes final files to:
+    <MEDIA_ROOT>/call_responses/<turn_id>.wav
 """
-import audioop
+
+from __future__ import annotations
+
 import io
 import logging
 import os
-import struct
+import re
 import wave
+from pathlib import Path
+from typing import List
 
 from django.conf import settings
 from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
-# Directory where response audio files are stored.
-# Override via CALL_RESPONSES_ROOT in .env / Django settings.
-_DEFAULT_RESPONSES_DIR = os.path.join(
-    getattr(settings, 'BASE_DIR', '/home/agent/voice_ai_agent'),
-    'media', 'call_responses',
-)
+# Asterisk-friendly output
+OUTPUT_SAMPLE_RATE = 8000
+OUTPUT_CHANNELS = 1
+OUTPUT_SAMPLE_WIDTH = 2  # 16-bit PCM
 
-# Asterisk target format
-_TARGET_SAMPLE_RATE   = 8_000   # Hz
-_TARGET_CHANNELS      = 1       # mono
-_TARGET_SAMPLE_WIDTH  = 2       # bytes → 16-bit PCM
+# OpenAI PCM is raw mono 24kHz 16-bit little-endian in common usage patterns.
+# We downsample it to 8kHz ourselves.
+OPENAI_PCM_INPUT_RATE = 24000
+
+DEFAULT_MODEL = "gpt-4o-mini-tts"
+DEFAULT_VOICE = "alloy"
+DEFAULT_SPEED = 1.0
+
+ARABIC_RE = re.compile(r"[\u0600-\u06FF]")
+MULTISPACE_RE = re.compile(r"\s+")
+LATIN_WORD_RE = re.compile(r"[A-Za-z]+")
 
 
-def _get_responses_dir() -> str:
-    root = getattr(settings, 'CALL_RESPONSES_ROOT', _DEFAULT_RESPONSES_DIR)
-    os.makedirs(root, exist_ok=True)
-    return root
+# ---------------------------------------------------------------------------
+# Basic helpers
+# ---------------------------------------------------------------------------
 
-
-def _get_client() -> OpenAI:
+def _client() -> OpenAI:
     return OpenAI(api_key=settings.OPENAI_API_KEY)
 
 
-# ---------------------------------------------------------------------------
-# MP3 → PCM WAV conversion (stdlib only)
-# ---------------------------------------------------------------------------
+def _get_setting(name: str, default):
+    return getattr(settings, name, default)
 
-def _mp3_bytes_to_pcm_wav(mp3_data: bytes, dest_path: str) -> None:
-    """
-    Decode MP3 → PCM and write a WAV file at Asterisk-compatible settings.
 
-    Strategy:
-      1. Try pydub (fast, clean) if available.
-      2. Fall back to a pure-stdlib approach via the `audioop` resampling trick
-         when pydub / libav are not installed.
-    """
+def _ensure_output_dir() -> Path:
+    media_root = Path(_get_setting("MEDIA_ROOT", "media"))
+    out_dir = media_root / "call_responses"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    return out_dir
+
+
+def _detect_language(text: str) -> str:
+    return "ar" if ARABIC_RE.search(text or "") else "en"
+
+
+def _choose_model() -> str:
+    return _get_setting("OPENAI_TTS_MODEL", DEFAULT_MODEL)
+
+
+def _choose_voice(language: str) -> str:
+    if language == "ar":
+        return _get_setting("OPENAI_TTS_VOICE_AR", _get_setting("OPENAI_TTS_VOICE", DEFAULT_VOICE))
+    return _get_setting("OPENAI_TTS_VOICE_EN", _get_setting("OPENAI_TTS_VOICE", DEFAULT_VOICE))
+
+
+def _choose_speed() -> float:
     try:
-        _convert_with_pydub(mp3_data, dest_path)
-        logger.debug(f"TTS: converted MP3 → WAV using pydub ({dest_path})")
-        return
-    except ImportError:
-        logger.debug("pydub not available — using stdlib WAV writer.")
-    except Exception as exc:
-        logger.warning(f"pydub conversion failed ({exc}); trying stdlib fallback.")
-
-    _convert_with_stdlib(mp3_data, dest_path)
-    logger.debug(f"TTS: wrote WAV via stdlib fallback ({dest_path})")
+        value = float(_get_setting("OPENAI_TTS_SPEED", DEFAULT_SPEED))
+    except Exception:
+        value = DEFAULT_SPEED
+    return max(0.75, min(1.25, value))
 
 
-def _convert_with_pydub(mp3_data: bytes, dest_path: str) -> None:
-    """Requires: pip install pydub  (and ffmpeg or libav on PATH)."""
-    from pydub import AudioSegment  # type: ignore
+# ---------------------------------------------------------------------------
+# Text normalization
+# ---------------------------------------------------------------------------
 
-    audio = AudioSegment.from_mp3(io.BytesIO(mp3_data))
-    audio = audio.set_frame_rate(_TARGET_SAMPLE_RATE)
-    audio = audio.set_channels(_TARGET_CHANNELS)
-    audio = audio.set_sample_width(_TARGET_SAMPLE_WIDTH)
-    audio.export(dest_path, format='wav')
+def _normalize_common(text: str) -> str:
+    text = (text or "").strip()
+
+    # Remove markdown-ish artifacts
+    text = re.sub(r"\*\*(.*?)\*\*", r"\1", text)
+    text = re.sub(r"^[\-\*\d\.\)\s]+", "", text, flags=re.M)
+
+    # Normalize whitespace
+    text = text.replace("\n", " ")
+    text = MULTISPACE_RE.sub(" ", text).strip()
+
+    return text
 
 
-def _convert_with_stdlib(mp3_data: bytes, dest_path: str) -> None:
+def _normalize_arabic(text: str) -> str:
+    text = _normalize_common(text)
+
+    # Make spoken Arabic more natural for TTS
+    replacements = {
+        "VoiceGate AI": "فويس جيت إي آي",
+        "AI": "إي آي",
+        "24/7": "أربع وعشرين ساعة طوال أيام الأسبوع",
+        "&": " و ",
+        "/": " أو ",
+        "،،": "،",
+        "..": ".",
+        "؟؟": "؟",
+    }
+
+    for src, dst in replacements.items():
+        text = text.replace(src, dst)
+
+    # Normalize punctuation spacing
+    text = re.sub(r"\s*،\s*", "، ", text)
+    text = re.sub(r"\s*\.\s*", ". ", text)
+    text = re.sub(r"\s*؟\s*", "؟ ", text)
+    text = MULTISPACE_RE.sub(" ", text).strip()
+
+    return text
+
+
+def _normalize_english(text: str) -> str:
+    text = _normalize_common(text)
+
+    replacements = {
+        "&": " and ",
+        "/": " or ",
+    }
+    for src, dst in replacements.items():
+        text = text.replace(src, dst)
+
+    text = MULTISPACE_RE.sub(" ", text).strip()
+    return text
+
+
+def _prepare_text(text: str, language: str) -> str:
+    text = _normalize_arabic(text) if language == "ar" else _normalize_english(text)
+
+    # Trim overlong phone text a bit before chunking
+    max_len = 260 if language == "ar" else 320
+    if len(text) > max_len:
+        text = text[:max_len].rsplit(" ", 1)[0].strip()
+
+    return text
+
+
+# ---------------------------------------------------------------------------
+# Chunking
+# ---------------------------------------------------------------------------
+
+def _split_sentences(text: str, language: str) -> List[str]:
     """
-    Pure-stdlib fallback.
-
-    OpenAI TTS with response_format='pcm' already returns raw 24 kHz / mono /
-    16-bit little-endian PCM — no MP3 decoding step needed.  We just resample
-    from 24 000 Hz to 8 000 Hz using audioop.ratecv and wrap it in a WAV header.
+    Split on spoken punctuation, preserving natural phone rhythm.
     """
-    # ratecv: (fragment, width, nchannels, inrate, outrate, state)
-    pcm_8k, _ = audioop.ratecv(
-        mp3_data,           # raw PCM bytes at source rate
-        _TARGET_SAMPLE_WIDTH,
-        _TARGET_CHANNELS,
-        24_000,             # OpenAI PCM output rate
-        _TARGET_SAMPLE_RATE,
-        None,
-    )
+    if not text:
+        return []
 
-    with wave.open(dest_path, 'wb') as wf:
-        wf.setnchannels(_TARGET_CHANNELS)
-        wf.setsampwidth(_TARGET_SAMPLE_WIDTH)
-        wf.setframerate(_TARGET_SAMPLE_RATE)
+    if language == "ar":
+        parts = re.split(r"(?<=[\.\!\؟،])\s+", text)
+    else:
+        parts = re.split(r"(?<=[\.\!\?\,])\s+", text)
+
+    return [p.strip() for p in parts if p.strip()]
+
+
+def _chunk_text(text: str, language: str) -> List[str]:
+    """
+    Create short TTS chunks.
+    Arabic stays shorter to improve clarity.
+    """
+    max_chars = int(_get_setting("OPENAI_TTS_MAX_CHARS_AR", 140) if language == "ar"
+                    else _get_setting("OPENAI_TTS_MAX_CHARS_EN", 180))
+
+    sentences = _split_sentences(text, language)
+    if not sentences:
+        return [text] if text else []
+
+    chunks: List[str] = []
+    current = ""
+
+    for sentence in sentences:
+        candidate = sentence if not current else f"{current} {sentence}"
+        if len(candidate) <= max_chars:
+            current = candidate
+        else:
+            if current:
+                chunks.append(current.strip())
+            if len(sentence) <= max_chars:
+                current = sentence
+            else:
+                # hard split long sentence
+                remaining = sentence
+                while len(remaining) > max_chars:
+                    cut = remaining[:max_chars]
+                    if " " in cut:
+                        cut = cut.rsplit(" ", 1)[0]
+                    chunks.append(cut.strip())
+                    remaining = remaining[len(cut):].strip()
+                current = remaining
+
+    if current:
+        chunks.append(current.strip())
+
+    return chunks
+
+
+# ---------------------------------------------------------------------------
+# Audio conversion
+# ---------------------------------------------------------------------------
+
+def _downsample_pcm_24k_to_8k(raw_pcm: bytes) -> bytes:
+    """
+    Very simple 24kHz -> 8kHz downsampling by taking every third sample.
+    Input/output are 16-bit little-endian mono PCM.
+
+    This is intentionally simple and dependency-free.
+    """
+    if not raw_pcm:
+        return b""
+
+    # 16-bit mono => 2 bytes per sample
+    sample_width = 2
+    frame_count = len(raw_pcm) // sample_width
+
+    # every 3rd sample for 24k -> 8k
+    out = bytearray()
+    step = 3
+    for i in range(0, frame_count, step):
+        start = i * sample_width
+        out.extend(raw_pcm[start:start + sample_width])
+
+    return bytes(out)
+
+
+def _write_wav(path: Path, pcm_8k: bytes) -> None:
+    with wave.open(str(path), "wb") as wf:
+        wf.setnchannels(OUTPUT_CHANNELS)
+        wf.setsampwidth(OUTPUT_SAMPLE_WIDTH)
+        wf.setframerate(OUTPUT_SAMPLE_RATE)
         wf.writeframes(pcm_8k)
+
+
+# ---------------------------------------------------------------------------
+# OpenAI speech call
+# ---------------------------------------------------------------------------
+
+def _speech_create_pcm(client: OpenAI, *, model: str, voice: str, text: str, speed: float) -> bytes:
+    """
+    Request raw PCM from OpenAI.
+
+    The API docs list supported output formats including wav and pcm.
+    We request pcm so we can produce a deterministic Asterisk-ready 8kHz wav. :contentReference[oaicite:1]{index=1}
+    """
+    kwargs = {
+        "model": model,
+        "voice": voice,
+        "input": text,
+        "speed": speed,
+        "format": "pcm",
+    }
+
+    try:
+        response = client.audio.speech.create(**kwargs)
+    except TypeError:
+        # Compatibility fallback for SDK variants that still use response_format
+        kwargs.pop("format", None)
+        kwargs["response_format"] = "pcm"
+        response = client.audio.speech.create(**kwargs)
+
+    # SDK response may expose content/read/iter_bytes depending on version
+    if hasattr(response, "read") and callable(response.read):
+        data = response.read()
+        if data:
+            return data
+
+    if hasattr(response, "content"):
+        data = response.content
+        if data:
+            return data
+
+    if hasattr(response, "iter_bytes") and callable(response.iter_bytes):
+        return b"".join(response.iter_bytes())
+
+    raise RuntimeError("TTS response did not expose readable audio bytes.")
 
 
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
-def synthesise(text: str, call_id: str = '', turn_id: str = '') -> str:
+def synthesise(text: str, turn_id: str) -> str:
     """
-    Convert answer text to an Asterisk-compatible WAV file.
+    Generate Asterisk-ready WAV for one call turn.
 
-    Args:
-        text:    The answer text to synthesise (from RAG / GPT response).
-        call_id: Legacy single-turn identifier → filename <call_id>.wav
-        turn_id: Multi-turn identifier (preferred) → filename <turn_id>.wav
-                 If both are supplied, turn_id takes precedence.
-
-    Returns:
-        Absolute path to the saved WAV file.
-
-    Raises:
-        ValueError:          If text is empty or no id provided.
-        openai.OpenAIError:  On API failures (let Celery retry).
-        OSError:             If the output directory cannot be written.
+    Returns absolute file path.
     """
-    text = text.strip()
-    if not text:
-        raise ValueError("synthesise() called with empty text — nothing to convert.")
+    if not text or not str(text).strip():
+        raise ValueError("TTS text is empty.")
 
-    file_id = turn_id or call_id
-    if not file_id:
-        raise ValueError("synthesise() requires either turn_id or call_id.")
+    if not turn_id:
+        raise ValueError("turn_id is required.")
 
-    responses_dir = _get_responses_dir()
-    dest_path = os.path.join(responses_dir, f"{file_id}.wav")
+    language = _detect_language(text)
+    model = _choose_model()
+    voice = _choose_voice(language)
+    speed = _choose_speed()
+
+    prepared = _prepare_text(text, language)
+    chunks = _chunk_text(prepared, language)
+
+    if not chunks:
+        raise ValueError("No TTS chunks generated after normalization.")
+
+    out_dir = _ensure_output_dir()
+    dest = out_dir / f"{turn_id}.wav"
 
     logger.info(
-        f"TTS started | id={file_id} | "
-        f"text_len={len(text)} | dest={dest_path}"
+        "TTS started | id=%s | lang=%s | model=%s | voice=%s | chunks=%s | text_len=%s | dest=%s",
+        turn_id,
+        language,
+        model,
+        voice,
+        len(chunks),
+        len(prepared),
+        dest,
     )
 
-    client = _get_client()
+    client = _client()
+    combined_pcm_8k = bytearray()
+    total_raw_bytes = 0
 
-    # Request raw PCM from OpenAI (24 kHz, mono, 16-bit little-endian).
-    # Using 'pcm' avoids any MP3 decoding and keeps the stdlib path fast.
-    response = client.audio.speech.create(
-        model='tts-1-hd',          # tts-1-hd for higher quality if latency permits
-        voice='nova',          # neutral voice; change to 'nova', 'shimmer', etc.
-        input=text,
-        response_format='pcm',  # raw signed 16-bit PCM at 24 000 Hz
+    for idx, chunk in enumerate(chunks, start=1):
+        logger.debug("TTS chunk %s/%s | id=%s | len=%s | text=%r", idx, len(chunks), turn_id, len(chunk), chunk)
+
+        raw_pcm_24k = _speech_create_pcm(
+            client,
+            model=model,
+            voice=voice,
+            text=chunk,
+            speed=speed,
+        )
+        total_raw_bytes += len(raw_pcm_24k)
+
+        pcm_8k = _downsample_pcm_24k_to_8k(raw_pcm_24k)
+        combined_pcm_8k.extend(pcm_8k)
+
+        # Tiny silence between chunks so concatenation sounds less abrupt
+        silence_ms = 90 if language == "ar" else 70
+        silence_samples = int(OUTPUT_SAMPLE_RATE * (silence_ms / 1000.0))
+        combined_pcm_8k.extend(b"\x00\x00" * silence_samples)
+
+    _write_wav(dest, bytes(combined_pcm_8k))
+
+    out_exists = dest.is_file()
+    out_size = dest.stat().st_size if out_exists else None
+
+    logger.debug(
+        "TTS: received %s bytes of raw PCM from OpenAI across %s chunk(s).",
+        total_raw_bytes,
+        len(chunks),
     )
-
-    raw_pcm = response.content  # bytes
-    logger.debug(f"TTS: received {len(raw_pcm)} bytes of raw PCM from OpenAI.")
-
-    # Resample 24 kHz → 8 kHz and write WAV
-    _convert_with_stdlib(raw_pcm, dest_path)
-
-    file_size = os.path.getsize(dest_path)
     logger.info(
-        f"TTS completed | id={file_id} | "
-        f"output={dest_path} | size={file_size} bytes | "
-        f"format=WAV PCM 8kHz mono 16-bit (Asterisk-ready)"
+        "TTS completed | id=%s | output=%s | size=%s bytes | format=WAV PCM 8kHz mono 16-bit (Asterisk-ready)",
+        turn_id,
+        dest,
+        out_size,
     )
 
-    return dest_path
+    return str(dest)

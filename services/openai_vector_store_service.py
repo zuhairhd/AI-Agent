@@ -3,13 +3,16 @@ OpenAI Vector Store service.
 
 Design: one persistent shared vector store for the entire knowledge base.
 
-The store ID is read from settings.OPENAI_VECTOR_STORE_ID (env: OPENAI_VECTOR_STORE_ID).
+Behavior:
+- If OPENAI_VECTOR_STORE_ID is set and valid   -> reuse it
+- If OPENAI_VECTOR_STORE_ID is set but invalid -> create a new store automatically
+- If OPENAI_VECTOR_STORE_ID is empty           -> create a new store automatically
 
-- If the ID is set   → reuse it; never create a new store.
-- If the ID is empty → create one store, log its ID prominently, and raise
-                       an error to force the operator to persist the ID in .env.
-                       This prevents silent proliferation of orphan stores.
+IMPORTANT:
+When a new vector store is created, its ID is logged clearly so the operator
+can copy it into .env as OPENAI_VECTOR_STORE_ID=vs_xxxx and restart services.
 """
+
 import logging
 import time
 
@@ -18,8 +21,8 @@ from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
-_POLL_INTERVAL = 2   # seconds between indexing status checks
-_MAX_POLLS     = 150  # 150 × 2 s = 5 minutes maximum wait
+_POLL_INTERVAL = 2    # seconds between indexing status checks
+_MAX_POLLS = 150      # 150 × 2 s = 5 minutes maximum wait
 
 
 def _get_client() -> OpenAI:
@@ -30,48 +33,57 @@ def _get_client() -> OpenAI:
 # Vector store lifecycle
 # ---------------------------------------------------------------------------
 
-def ensure_vector_store(name: str = 'company_knowledge_base') -> str:
-    """
-    Return the persistent vector store ID.
-
-    Reads OPENAI_VECTOR_STORE_ID from Django settings (populated via .env).
-    If not set, creates one new store, logs the ID at WARNING level so the
-    operator can copy it into .env, then raises RuntimeError to prevent silent
-    data scattering across multiple stores.
-
-    On a freshly configured system the operator should:
-      1. Run once — the ID is printed to the logs.
-      2. Copy the ID into .env as OPENAI_VECTOR_STORE_ID=vs_xxxx
-      3. Restart the worker — all subsequent uploads reuse that store.
-    """
-    vector_store_id = getattr(settings, 'OPENAI_VECTOR_STORE_ID', '').strip()
-
-    if vector_store_id:
-        logger.info(f"Reusing persistent vector store: {vector_store_id}")
-        return vector_store_id
-
-    # No ID configured — create once and force the operator to persist it.
+def _create_vector_store(name: str) -> str:
+    """Create a new vector store and log its ID clearly."""
     client = _get_client()
-    logger.warning(
-        "OPENAI_VECTOR_STORE_ID is not set. "
-        "Creating a new vector store. Copy the ID below into your .env file."
-    )
     store = client.vector_stores.create(name=name)
+
     logger.warning(
         "=================================================================\n"
-        f"  NEW VECTOR STORE CREATED: {store.id}\n"
-        "  Add this to your .env:  OPENAI_VECTOR_STORE_ID=%s\n"
-        "  Then restart the Celery worker and Gunicorn.\n"
+        "  NEW VECTOR STORE CREATED: %s\n"
+        "  Add this to your .env:\n"
+        "  OPENAI_VECTOR_STORE_ID=%s\n"
+        "  Then restart Celery worker / beat / Gunicorn.\n"
         "=================================================================",
         store.id,
+        store.id,
     )
-    # Raise so the Celery task fails loudly instead of creating a new store
-    # on every document upload.
-    raise RuntimeError(
-        f"OPENAI_VECTOR_STORE_ID not set. "
-        f"A new vector store was created: {store.id}. "
-        f"Set OPENAI_VECTOR_STORE_ID={store.id} in .env and restart services."
+
+    return store.id
+
+
+def ensure_vector_store(name: str = "company_knowledge_base") -> str:
+    """
+    Return a usable persistent vector store ID.
+
+    Reads OPENAI_VECTOR_STORE_ID from Django settings.
+
+    Cases:
+    - valid configured ID   -> reuse it
+    - invalid configured ID -> create a new one automatically
+    - missing configured ID -> create a new one automatically
+    """
+    client = _get_client()
+    vector_store_id = getattr(settings, "OPENAI_VECTOR_STORE_ID", "").strip()
+
+    if vector_store_id:
+        try:
+            client.vector_stores.retrieve(vector_store_id)
+            logger.info(f"Reusing persistent vector store: {vector_store_id}")
+            return vector_store_id
+        except Exception as exc:
+            logger.warning(
+                "Configured OPENAI_VECTOR_STORE_ID is invalid or deleted: %s | %s",
+                vector_store_id,
+                exc,
+            )
+            logger.warning("Creating a replacement vector store automatically.")
+            return _create_vector_store(name)
+
+    logger.warning(
+        "OPENAI_VECTOR_STORE_ID is not set. Creating a new vector store automatically."
     )
+    return _create_vector_store(name)
 
 
 # ---------------------------------------------------------------------------
@@ -109,14 +121,15 @@ def check_status(vector_store_id: str, file_id: str) -> str:
         status = file_status.status
         logger.debug(f"Poll {attempt + 1}: status={status}")
 
-        if status == 'completed':
+        if status == "completed":
             logger.info(f"File {file_id} indexed successfully.")
-            return 'completed'
-        if status == 'failed':
+            return "completed"
+
+        if status == "failed":
             logger.error(f"File {file_id} indexing failed.")
-            return 'failed'
+            return "failed"
 
         time.sleep(_POLL_INTERVAL)
 
     logger.error(f"Timed out waiting for file {file_id} to index.")
-    return 'timeout'
+    return "timeout"

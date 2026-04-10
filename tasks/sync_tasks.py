@@ -2,7 +2,7 @@ import hashlib
 import logging
 import os
 from datetime import datetime, timezone
-
+from pathlib import Path
 from celery import shared_task
 from django.utils import timezone as django_timezone
 
@@ -29,16 +29,44 @@ def compute_sha256(file_path: str) -> str:
     retry_backoff_max=60,
     name='tasks.sync_document',
 )
-def sync_document(self, file_path: str) -> dict:
+#def sync_document(self, file_path: str) -> dict:
+def sync_document(self, value: str) -> dict:
     """
     Sync a document from disk to OpenAI Vector Store.
     Idempotent: skips if sha256 already indexed.
     """
-    logger.info(f"Starting sync for: {file_path}")
+    logger.info(f"Starting sync for: {value}")
+    file_path = value
 
-    if not os.path.exists(file_path):
-        logger.error(f"File does not exist: {file_path}")
-        return {'status': 'skipped', 'reason': 'file_not_found'}
+#    if not Path(file_path).exists():
+#        # Try resolving as document id
+#        try:
+#            from apps.portal.models import KnowledgeDocument  # adjust model name if different
+#            doc = KnowledgeDocument.objects.get(id=value)
+#            file_path = doc.file.path   # or doc.local_path depending on your model
+#        except Exception as e:
+#            logger.error(f"File does not exist and doc lookup failed: {value} | {e}")
+#            return {"status": "skipped", "reason": "file_not_found"}
+
+    if not Path(file_path).exists():
+       try:
+           doc = KnowledgeDocument.objects.get(id=value)
+           file_path = doc.local_path
+       except KnowledgeDocument.DoesNotExist:
+           logger.error(f"Document ID not found: {value}")
+           return {"status": "skipped", "reason": "document_not_found"}
+       except Exception as e:
+           logger.error(f"File does not exist and doc lookup failed: {value} | {e}")
+           return {"status": "skipped", "reason": "file_not_found"}
+
+    if not Path(file_path).exists():
+        logger.error(f"Resolved path still missing: {file_path}")
+        return {"status": "skipped", "reason": "file_not_found"}
+
+
+#    if not os.path.exists(file_path):
+#        logger.error(f"File does not exist: {file_path}")
+#        return {'status': 'skipped', 'reason': 'file_not_found'}
 
     file_name = os.path.basename(file_path)
     sha256 = compute_sha256(file_path)

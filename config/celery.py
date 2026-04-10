@@ -1,4 +1,5 @@
 import os
+
 from celery import Celery
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.base')
@@ -12,6 +13,9 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 # because call_tasks.py and sync_tasks.py live there directly.
 app.autodiscover_tasks()
 app.autodiscover_tasks(['tasks'])  # top-level tasks/ package (call_tasks, sync_tasks)
+
+# ✅ ADD HERE (after config is ready)
+# import tasks.sync_tasks
 
 @app.task(bind=True, ignore_result=True)
 def debug_task(self):

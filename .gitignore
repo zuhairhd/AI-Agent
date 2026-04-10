@@ -28,3 +28,13 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+# local env
+.env
+
+# backups
+*.bak
+*.old
+*.save
+
+# local tests
+testapikey.py

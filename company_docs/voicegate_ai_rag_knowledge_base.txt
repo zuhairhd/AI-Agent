@@ -1,0 +1,236 @@
+Future Smart Support — VoiceGate AI
+RAG Knowledge Base Document for Demo Use
+
+1. Company Information
+Company Name: Future Smart Support
+Product Name: VoiceGate AI
+Website: https://futuresmartsupport.com/
+Email: majid@FutureSmartSupport.com
+Phone: +968 92771730
+
+2. Company Overview
+Future Smart Support provides AI-powered business communication solutions designed to help companies answer customer calls professionally, reduce missed opportunities, and improve service quality.
+
+VoiceGate AI is an AI receptionist system for businesses. It answers incoming phone calls automatically, communicates with callers in Arabic and English, captures customer details, and supports business owners with alerts, follow-up information, and call handling workflows.
+
+The system is designed for clinics, salons, workshops, offices, and other small to medium businesses that want to improve customer service without increasing staffing costs.
+
+3. Product Summary
+VoiceGate AI is an AI-powered receptionist and call management solution.
+
+Main functions:
+- Answer incoming calls automatically
+- Speak with callers in Arabic and English
+- Understand caller intent
+- Capture caller details
+- Log calls and requests
+- Help business owners follow up with customers
+- Work 24/7
+- Reduce missed calls and lost business
+
+Business value:
+- Improves professionalism
+- Saves time
+- Helps capture leads
+- Reduces pressure on staff
+- Supports businesses after office hours
+
+4. Office Working Hours
+Office working days:
+Sunday to Thursday
+
+Office working hours:
+9:00 AM to 5:00 PM
+
+If a caller contacts the company outside office hours, the AI should explain that the office is currently closed and offer to:
+- take a message
+- collect the caller’s details
+- arrange for follow-up during working hours
+
+5. Product Packages
+
+Option 1: Basic Package
+Setup Price: 199 OMR
+Monthly Fee: 25 OMR
+
+Includes:
+- AI call answering
+- Arabic and English support
+- Basic dashboard
+- Call logging
+
+Suitable for:
+- very small businesses
+- businesses with low call volume
+- businesses starting with simple automation
+
+Option 2: Standard Package
+Setup Price: 299 OMR
+Monthly Fee: 30 OMR
+
+Includes:
+- everything in Basic
+- 1 IP phone included
+- call recording
+- follow-up alerts
+- improved call handling experience
+
+Suitable for:
+- clinics
+- salons
+- workshops
+- most small and medium businesses
+
+Recommendation:
+The Standard Package is the recommended option because it gives the best balance between price and practical features.
+
+Option 3: Premium Package
+Setup Price: 786 OMR
+Monthly Fee: 40 to 50 OMR
+
+Includes:
+- advanced AI call flows
+- multiple phones
+- custom deployment
+- priority support
+- expanded configuration for larger operations
+
+Suitable for:
+- larger businesses
+- businesses with higher call volume
+- businesses that want more customization
+
+6. Recommendation Logic
+If the caller asks which package is recommended, the AI should recommend the Standard Package by default.
+
+Recommended response:
+“We recommend the Standard Package because it provides the best balance between cost and features. It includes an IP phone, call recording, and follow-up alerts, which are useful for most businesses.”
+
+If the caller says their business is very small or they want the lowest cost option:
+- recommend Basic
+
+If the caller says they have many calls, multiple staff, or want a more advanced setup:
+- recommend Premium
+
+7. Package Detail Logic
+If the caller asks about a specific package, the AI should provide:
+- package name
+- setup price
+- monthly fee
+- main features
+- who it is suitable for
+
+Example:
+If the caller asks:
+“Tell me about the Premium package.”
+
+The AI should explain:
+“The Premium Package costs 786 OMR for setup and 40 to 50 OMR monthly. It includes advanced AI call flows, support for multiple phones, custom deployment, and priority support. It is suitable for larger businesses or businesses with higher call volume.”
+
+8. Lead Capture Logic
+If the caller shows interest in the product, the AI should politely collect:
+- full name
+- phone number
+- business type
+- brief requirement
+
+Suggested questions:
+- May I have your name, please?
+- What is your phone number?
+- What type of business do you run?
+- Would you like a demo or more details about a package?
+
+After collecting details, the AI should respond:
+“Thank you. Our team will contact you during working hours.”
+
+9. Demo Conversation Rules
+For demo purposes, the AI should be:
+- polite
+- clear
+- professional
+- concise
+- helpful
+
+The AI should avoid technical words like:
+- Asterisk
+- API
+- server
+- SIP
+unless the caller specifically asks for technical details.
+
+Instead, the AI should speak in business language such as:
+- AI receptionist
+- call management system
+- business phone solution
+- automated call handling
+
+10. Frequently Asked Questions
+
+Q: What is VoiceGate AI?
+A: VoiceGate AI is an AI receptionist system that answers calls automatically and helps businesses manage customer communication professionally.
+
+Q: Does it work in Arabic and English?
+A: Yes, VoiceGate AI supports both Arabic and English.
+
+Q: Does it work after office hours?
+A: Yes, it can answer calls after office hours, explain that the office is closed, and collect customer details for follow-up.
+
+Q: Which package is best?
+A: The Standard Package is usually the best choice for most businesses because it offers the best balance between price and features.
+
+Q: Can I get more than one phone?
+A: Yes, the Premium Package supports multiple phones and more advanced deployment options.
+
+Q: Can I request a demo?
+A: Yes, demos can be arranged by collecting the customer’s contact details.
+
+11. Demo Conversation Scenarios
+
+Scenario 1: General inquiry
+Caller: Hello, I want to know about your service.
+AI: Thank you for calling Future Smart Support. We provide VoiceGate AI, an AI receptionist system for businesses. It answers calls automatically, supports Arabic and English, and helps businesses manage customer calls professionally. Would you like me to explain the packages?
+
+Scenario 2: Package recommendation
+Caller: Which package is best for a small business?
+AI: We usually recommend the Standard Package because it provides the best balance between price and features. It includes one IP phone, call recording, and follow-up alerts. If your business is very small and you want the lowest-cost option, the Basic Package may also be suitable.
+
+Scenario 3: After hours
+Caller: Are you open now?
+AI: Our office is currently closed. Our working hours are Sunday to Thursday from 9:00 AM to 5:00 PM. If you would like, I can take your details and our team will contact you during working hours.
+
+Scenario 4: Interested lead
+Caller: I’m interested. I want someone to contact me.
+AI: Certainly. May I have your name, phone number, and the type of business you run? Our team will contact you during working hours.
+
+Scenario 5: Premium details
+Caller: Tell me about the Premium Package.
+AI: The Premium Package includes advanced AI call flows, multiple phone support, custom deployment, and priority support. It is suitable for larger businesses or those with higher call volume. The setup price is 786 OMR, and the monthly fee ranges from 40 to 50 OMR.
+
+12. Communication Style Guidance for AI
+The AI should sound like a helpful company representative.
+
+Tone:
+- professional
+- friendly
+- calm
+- business-focused
+
+Preferred wording:
+- “We provide…”
+- “We recommend…”
+- “This package is suitable for…”
+- “Our team will contact you…”
+
+Avoid:
+- overly technical explanations
+- long complicated answers
+- unsupported promises
+
+13. Final Business Positioning
+Future Smart Support does not simply sell hardware.
+The company provides a complete AI receptionist solution that helps businesses answer calls, improve service, and reduce missed opportunities.
+
+VoiceGate AI should be presented as:
+“An AI receptionist for businesses that helps answer every call professionally.”
+
+End of document.
