@@ -72,15 +72,14 @@ async function refresh() {
   catch { /* silently ignore polling errors */ }
 }
 
-onMounted(async () => {
+onMounted(() => {
   loading.value = true
-  try { await refresh() }
-  finally { loading.value = false }
-  pollTimer = setInterval(refresh, 10_000)
+  refresh().finally(() => { loading.value = false })
+  pollTimer = setInterval(refresh, 5000)
 })
 
 onUnmounted(() => {
-  if (pollTimer) clearInterval(pollTimer)
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
 })
 
 function formatDate(s) { return s ? new Date(s).toLocaleString() : '—' }

@@ -6,21 +6,7 @@
         <p class="text-sm text-gray-500 mt-1">All inbound call sessions</p>
       </div>
       <div class="flex items-center gap-3">
-        <!-- Auto-refresh toggle -->
-        <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
-          <span
-            class="relative inline-block w-9 h-5 rounded-full transition-colors"
-            :class="autoRefresh ? 'bg-green-500' : 'bg-gray-300'"
-            @click="toggleAutoRefresh"
-          >
-            <span
-              class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform"
-              :class="autoRefresh ? 'translate-x-4' : 'translate-x-0'"
-            ></span>
-          </span>
-          Auto-refresh
-        </label>
-        <!-- Export CSV -->
+        <span class="text-xs text-gray-400">Auto-refreshing every 10s</span>
         <button @click="doExportCsv"
                 class="px-3 py-1.5 text-sm rounded-lg border border-gray-200 text-gray-700 hover:border-blue-300 transition">
           ⬇ Export CSV
@@ -194,20 +180,9 @@ function toggleAll() {
   }
 }
 
-// Auto-refresh
-const autoRefresh = ref(false)
 let pollTimer     = null
 
-function toggleAutoRefresh() {
-  autoRefresh.value = !autoRefresh.value
-  if (autoRefresh.value) {
-    pollTimer = setInterval(() => load(true), 5_000)
-  } else {
-    if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
-  }
-}
-
-onUnmounted(() => { if (pollTimer) clearInterval(pollTimer) })
+onUnmounted(() => { if (pollTimer) { clearInterval(pollTimer); pollTimer = null } })
 
 let debounceTimer = null
 function debounceLoad() { clearTimeout(debounceTimer); debounceTimer = setTimeout(load, 400) }
@@ -225,7 +200,11 @@ async function load(silent = false) {
 }
 
 function goPage(p) { page.value = p; load() }
-onMounted(load)
+
+onMounted(() => {
+  load()
+  pollTimer = setInterval(() => load(true), 10000)
+})
 
 async function doBulkDelete() {
   confirmBulkDelete.value = false
