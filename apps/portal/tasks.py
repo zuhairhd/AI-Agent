@@ -51,3 +51,51 @@ def send_alert_notification(self, alert_id: str) -> None:
     except Exception as exc:
         logger.error(f"[portal.tasks] Dispatch failed for alert {alert_id}: {exc}")
         raise self.retry(exc=exc, countdown=60)
+
+
+@shared_task(name='portal.regenerate_prompt_audio', bind=True, max_retries=2)
+def regenerate_prompt_audio(self, stem: str) -> None:
+    """
+    Async TTS regeneration for a CallPrompt triggered when its text is updated.
+    Mirrors the synchronous logic in prompt_regenerate_view.
+    """
+    import os
+    from django.conf import settings as _settings
+    from apps.portal.models import CallPrompt
+
+    try:
+        prompt = CallPrompt.objects.get(stem=stem)
+    except CallPrompt.DoesNotExist:
+        logger.warning(f"[regenerate_prompt_audio] stem={stem!r} not found; skipping")
+        return
+
+    sounds_dir = getattr(_settings, 'ASTERISK_SOUNDS_DIR', '/var/lib/asterisk/sounds/custom')
+    os.makedirs(sounds_dir, exist_ok=True)
+    wav_path = os.path.join(sounds_dir, f"{stem}.wav")
+
+    try:
+        from openai import OpenAI
+        client   = OpenAI(api_key=_settings.OPENAI_API_KEY)
+        response = client.audio.speech.create(model='tts-1', voice='alloy', input=prompt.text)
+        response.stream_to_file(wav_path)
+
+        try:
+            import subprocess
+            tmp = wav_path + '.tmp.wav'
+            subprocess.run(
+                ['ffmpeg', '-y', '-i', wav_path, '-ar', '8000', '-ac', '1', '-f', 'wav', tmp],
+                check=True, capture_output=True,
+            )
+            os.replace(tmp, wav_path)
+        except Exception as fe:
+            logger.warning(f"[regenerate_prompt_audio] ffmpeg skipped for {stem}: {fe}")
+
+        prompt.audio_path   = wav_path
+        prompt.audio_exists = os.path.isfile(wav_path)
+        prompt.version     += 1
+        prompt.save(update_fields=['audio_path', 'audio_exists', 'version'])
+        logger.info(f"[regenerate_prompt_audio] Done: {stem}")
+
+    except Exception as exc:
+        logger.error(f"[regenerate_prompt_audio] Failed for {stem}: {exc}", exc_info=True)
+        raise self.retry(exc=exc, countdown=30)

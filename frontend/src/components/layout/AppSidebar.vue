@@ -1,5 +1,5 @@
 <template>
-  <aside class="flex w-72 min-h-screen flex-col border-r border-white/10 bg-[linear-gradient(180deg,#071426_0%,#0b1932_100%)] text-white shadow-2xl">
+  <aside class="flex w-72 min-h-screen flex-col border-r border-white/10 bg-[linear-gradient(180deg,#071428_0%,#0B1F3A_100%)] text-white shadow-2xl">
     <!-- Brand -->
     <div class="border-b border-white/10 px-5 py-5">
       <div class="flex items-center gap-3">
@@ -12,7 +12,7 @@
         </div>
       </div>
 
-      <div class="mt-4 rounded-2xl border border-[rgba(196,146,102,.16)] bg-[rgba(255,255,255,.04)] p-4">
+      <div class="mt-4 rounded-2xl border border-[rgba(200,155,60,.16)] bg-[rgba(255,255,255,.04)] p-4">
         <div class="text-xs uppercase tracking-[0.14em] text-slate-400">System Status</div>
         <div class="mt-2 flex items-center gap-2">
           <span class="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,.8)]"></span>
@@ -37,13 +37,13 @@
             ? 'text-white shadow-lg'
             : 'text-slate-400 hover:text-white hover:bg-white/5'"
           :style="isActive(item.to)
-            ? 'background: linear-gradient(135deg, rgba(196,146,102,.20), rgba(196,146,102,.10)); border: 1px solid rgba(196,146,102,.20);'
+            ? 'background: linear-gradient(135deg, rgba(200,155,60,.20), rgba(200,155,60,.10)); border: 1px solid rgba(200,155,60,.20);'
             : ''"
         >
           <span
             class="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-base transition-all duration-200"
             :style="isActive(item.to)
-              ? 'color: var(--fss-bronze); background: rgba(196,146,102,.12); border-color: rgba(196,146,102,.16);'
+              ? 'color: var(--fss-bronze); background: rgba(200,155,60,.12); border-color: rgba(200,155,60,.16);'
               : ''"
           >
             {{ item.icon }}

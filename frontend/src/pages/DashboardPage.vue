@@ -54,7 +54,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { getDashboard } from '@/api/dashboard'
 import KpiCard from '@/components/ui/KpiCard.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
@@ -65,9 +65,22 @@ const data    = ref(null)
 const loading = ref(true)
 const today   = new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' })
 
-onMounted(async () => {
+let pollTimer = null
+
+async function refresh() {
   try { data.value = (await getDashboard()).data }
+  catch { /* silently ignore polling errors */ }
+}
+
+onMounted(async () => {
+  loading.value = true
+  try { await refresh() }
   finally { loading.value = false }
+  pollTimer = setInterval(refresh, 10_000)
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
 })
 
 function formatDate(s) { return s ? new Date(s).toLocaleString() : '—' }

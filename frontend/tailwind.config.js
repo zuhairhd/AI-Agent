@@ -5,15 +5,21 @@ export default {
     extend: {
       colors: {
         fss: {
-          bronze:      '#B5845A',
-          'bronze-light': '#D4A373',
-          'bronze-dark':  '#8B5E3C',
+          navy:           '#0B1F3A',
+          'navy-light':   '#1A2F50',
+          'navy-dark':    '#071428',
+          bronze:         '#C89B3C',
+          'bronze-light': '#D4AF6A',
+          'bronze-dark':  '#A07828',
         },
         sidebar: {
-          DEFAULT: '#1A2035',
-          hover:   '#252F4A',
-          active:  '#2F3D5C',
+          DEFAULT: '#0B1F3A',
+          hover:   '#1A2F50',
+          active:  '#243D6A',
         },
+      },
+      fontFamily: {
+        sans: ['Inter', 'Cairo', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
     },
   },

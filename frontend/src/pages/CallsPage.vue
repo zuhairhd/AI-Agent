@@ -5,6 +5,27 @@
         <h1 class="text-xl font-bold text-gray-900">Calls</h1>
         <p class="text-sm text-gray-500 mt-1">All inbound call sessions</p>
       </div>
+      <div class="flex items-center gap-3">
+        <!-- Auto-refresh toggle -->
+        <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
+          <span
+            class="relative inline-block w-9 h-5 rounded-full transition-colors"
+            :class="autoRefresh ? 'bg-green-500' : 'bg-gray-300'"
+            @click="toggleAutoRefresh"
+          >
+            <span
+              class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform"
+              :class="autoRefresh ? 'translate-x-4' : 'translate-x-0'"
+            ></span>
+          </span>
+          Auto-refresh
+        </label>
+        <!-- Export CSV -->
+        <button @click="doExportCsv"
+                class="px-3 py-1.5 text-sm rounded-lg border border-gray-200 text-gray-700 hover:border-blue-300 transition">
+          ⬇ Export CSV
+        </button>
+      </div>
     </div>
 
     <!-- Filters -->
@@ -18,6 +39,8 @@
         <option value="completed">Completed</option>
         <option value="failed">Failed</option>
         <option value="transferred">Transferred</option>
+        <option value="ended_by_caller">Ended by Caller</option>
+        <option value="abandoned">Abandoned</option>
       </select>
       <select v-model="filters.needs_followup" @change="load"
               class="border border-gray-200 rounded-lg px-3 py-2 text-sm">
@@ -31,12 +54,38 @@
              class="border border-gray-200 rounded-lg px-3 py-2 text-sm" />
     </div>
 
+    <!-- Bulk action bar -->
+    <div v-if="selected.size > 0"
+         class="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-4 flex items-center gap-3 text-sm">
+      <span class="text-blue-700 font-medium">{{ selected.size }} selected</span>
+      <button @click="doBulkMark(true)"
+              class="px-3 py-1.5 rounded-lg border border-orange-300 text-orange-700 hover:bg-orange-50 transition">
+        Flag Follow-up
+      </button>
+      <button @click="doBulkMark(false)"
+              class="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition">
+        Clear Follow-up
+      </button>
+      <button @click="confirmBulkDelete = true"
+              class="px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition">
+        Delete Selected
+      </button>
+      <button @click="selected.clear(); selected = new Set()"
+              class="ml-auto px-3 py-1.5 text-gray-500 hover:text-gray-700">
+        Deselect all
+      </button>
+    </div>
+
     <LoadingSpinner v-if="loading" />
 
     <div v-else class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <table class="w-full text-sm">
         <thead class="bg-gray-50 border-b border-gray-100">
           <tr>
+            <th class="px-4 py-3 w-8">
+              <input type="checkbox" :checked="allSelected" @change="toggleAll"
+                     class="rounded border-gray-300" />
+            </th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Caller</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Date / Time</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Duration</th>
@@ -47,17 +96,28 @@
         </thead>
         <tbody>
           <tr v-if="calls.length === 0">
-            <td colspan="6" class="text-center py-12 text-gray-400">No calls found.</td>
+            <td colspan="7" class="text-center py-12 text-gray-400">No calls found.</td>
           </tr>
           <tr v-for="call in calls" :key="call.id"
-              class="border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors"
-              @click="$router.push(`/portal/calls/${call.id}`)">
-            <td class="px-4 py-3 font-medium text-gray-800">{{ call.caller_number }}</td>
-            <td class="px-4 py-3 text-gray-600">{{ fmt(call.started_at) }}</td>
-            <td class="px-4 py-3 text-gray-600">{{ fmtDur(call.duration_seconds) }}</td>
-            <td class="px-4 py-3"><StatusBadge :status="call.status" /></td>
-            <td class="px-4 py-3 text-gray-600 uppercase text-xs">{{ call.language }}</td>
-            <td class="px-4 py-3 flex gap-1 flex-wrap">
+              class="border-b border-gray-50 hover:bg-gray-50 transition-colors"
+              :class="selected.has(call.id) ? 'bg-blue-50' : ''">
+            <td class="px-4 py-3" @click.stop>
+              <input type="checkbox" :checked="selected.has(call.id)"
+                     @change="toggleOne(call.id)"
+                     class="rounded border-gray-300" />
+            </td>
+            <td class="px-4 py-3 font-medium text-gray-800 cursor-pointer"
+                @click="$router.push(`/portal/calls/${call.id}`)">{{ call.caller_number }}</td>
+            <td class="px-4 py-3 text-gray-600 cursor-pointer"
+                @click="$router.push(`/portal/calls/${call.id}`)">{{ fmt(call.started_at) }}</td>
+            <td class="px-4 py-3 text-gray-600 cursor-pointer"
+                @click="$router.push(`/portal/calls/${call.id}`)">{{ fmtDur(call.duration_seconds) }}</td>
+            <td class="px-4 py-3 cursor-pointer"
+                @click="$router.push(`/portal/calls/${call.id}`)"><StatusBadge :status="call.status" /></td>
+            <td class="px-4 py-3 text-gray-600 uppercase text-xs cursor-pointer"
+                @click="$router.push(`/portal/calls/${call.id}`)">{{ call.language }}</td>
+            <td class="px-4 py-3 flex gap-1 flex-wrap cursor-pointer"
+                @click="$router.push(`/portal/calls/${call.id}`)">
               <span v-if="call.needs_followup" class="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full">Follow-up</span>
               <span v-if="call.transfer_triggered" class="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full">Escalated</span>
             </td>
@@ -77,15 +137,33 @@
         </div>
       </div>
     </div>
+
+    <!-- Bulk delete confirmation modal -->
+    <div v-if="confirmBulkDelete" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm">
+        <h3 class="font-semibold text-gray-900 mb-2">Delete {{ selected.size }} Call(s)?</h3>
+        <p class="text-sm text-gray-600 mb-4">
+          This will permanently delete the selected sessions and all associated audio files. This cannot be undone.
+        </p>
+        <div class="flex justify-end gap-3">
+          <button @click="confirmBulkDelete = false"
+                  class="px-4 py-2 text-sm rounded-lg border border-gray-200 text-gray-700">Cancel</button>
+          <button @click="doBulkDelete"
+                  class="px-4 py-2 text-sm text-white rounded-lg bg-red-500 hover:bg-red-600 transition">Delete</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { getCalls } from '@/api/calls'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { getCalls, bulkDeleteCalls, bulkMarkCalls, exportCallsCsv } from '@/api/calls'
+import { useUiStore } from '@/stores/ui'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
 
+const uiStore = useUiStore()
 const calls   = ref([])
 const loading = ref(true)
 const count   = ref(0)
@@ -94,11 +172,48 @@ const prev    = ref(null)
 const page    = ref(1)
 const filters = ref({ search:'', status:'', needs_followup:'', date_from:'', date_to:'' })
 
+// Bulk selection
+let selected         = ref(new Set())
+const confirmBulkDelete = ref(false)
+
+const allSelected = computed(() =>
+  calls.value.length > 0 && calls.value.every(c => selected.value.has(c.id))
+)
+
+function toggleOne(id) {
+  const s = new Set(selected.value)
+  s.has(id) ? s.delete(id) : s.add(id)
+  selected.value = s
+}
+
+function toggleAll() {
+  if (allSelected.value) {
+    selected.value = new Set()
+  } else {
+    selected.value = new Set(calls.value.map(c => c.id))
+  }
+}
+
+// Auto-refresh
+const autoRefresh = ref(false)
+let pollTimer     = null
+
+function toggleAutoRefresh() {
+  autoRefresh.value = !autoRefresh.value
+  if (autoRefresh.value) {
+    pollTimer = setInterval(() => load(true), 5_000)
+  } else {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+  }
+}
+
+onUnmounted(() => { if (pollTimer) clearInterval(pollTimer) })
+
 let debounceTimer = null
 function debounceLoad() { clearTimeout(debounceTimer); debounceTimer = setTimeout(load, 400) }
 
-async function load() {
-  loading.value = true
+async function load(silent = false) {
+  if (!silent) loading.value = true
   try {
     const params = { page: page.value, ...Object.fromEntries(Object.entries(filters.value).filter(([,v]) => v !== '')) }
     const res = (await getCalls(params)).data
@@ -106,11 +221,45 @@ async function load() {
     count.value = res.count ?? calls.value.length
     next.value  = res.next
     prev.value  = res.previous
-  } finally { loading.value = false }
+  } finally { if (!silent) loading.value = false }
 }
 
 function goPage(p) { page.value = p; load() }
 onMounted(load)
+
+async function doBulkDelete() {
+  confirmBulkDelete.value = false
+  try {
+    const ids = [...selected.value]
+    await bulkDeleteCalls(ids)
+    selected.value = new Set()
+    uiStore.addToast(`Deleted ${ids.length} call(s).`, 'success')
+    load()
+  } catch { uiStore.addToast('Bulk delete failed.', 'error') }
+}
+
+async function doBulkMark(flag) {
+  try {
+    const ids = [...selected.value]
+    await bulkMarkCalls(ids, flag)
+    selected.value = new Set()
+    uiStore.addToast(`Updated ${ids.length} call(s).`, 'success')
+    load()
+  } catch { uiStore.addToast('Bulk update failed.', 'error') }
+}
+
+async function doExportCsv() {
+  try {
+    const params = Object.fromEntries(Object.entries(filters.value).filter(([,v]) => v !== ''))
+    const res = await exportCallsCsv(params)
+    const url = URL.createObjectURL(res.data)
+    const a   = document.createElement('a')
+    a.href    = url
+    a.download = 'calls_export.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch { uiStore.addToast('Export failed.', 'error') }
+}
 
 function fmt(s) { return s ? new Date(s).toLocaleString() : '—' }
 function fmtDur(s) {

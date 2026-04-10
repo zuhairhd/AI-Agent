@@ -136,7 +136,7 @@ class NotificationPreferenceSerializer(serializers.ModelSerializer):
     class Meta:
         model  = NotificationPreference
         fields = (
-            'email_enabled', 'notify_on', 'notify_email',
+            'email_enabled', 'notify_on', 'notify_email', 'notify_all_calls',
             'sms_enabled', 'sms_number',
             'whatsapp_enabled', 'whatsapp_number',
         )

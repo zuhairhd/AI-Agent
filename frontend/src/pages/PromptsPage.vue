@@ -9,12 +9,16 @@
     <LoadingSpinner v-if="loading" />
 
     <div v-else class="space-y-4">
-      <div v-for="prompt in prompts" :key="prompt.stem"
+      <div v-for="(prompt, idx) in prompts" :key="prompt.stem"
            class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
         <div class="flex items-start justify-between gap-4 mb-3">
           <div>
-            <h3 class="font-semibold text-gray-900 text-sm">{{ prompt.stem }}</h3>
-            <span class="text-xs text-gray-400">{{ prompt.language }}</span>
+            <div class="flex items-center gap-2 mb-0.5">
+              <span class="text-xs font-bold text-white rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0"
+                    style="background: var(--fss-bronze)">{{ idx + 1 }}</span>
+              <h3 class="font-semibold text-gray-900 text-sm">{{ PROMPT_LABELS[prompt.stem] || prompt.stem }}</h3>
+            </div>
+            <span class="text-xs text-gray-400 ml-7">{{ prompt.stem }} · {{ prompt.language }}</span>
           </div>
           <div class="flex items-center gap-2">
             <span :class="prompt.audio_exists ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'"
@@ -29,10 +33,10 @@
                   class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 resize-none mb-3"
                   :placeholder="prompt.text"></textarea>
 
-        <!-- Audio player -->
-        <div v-if="prompt.audio_exists && prompt.audio_path" class="mb-3">
-          <audio controls class="w-full h-8">
-            <source :src="`/static/portal/audio/${prompt.stem}.wav`" type="audio/wav" />
+        <!-- Audio player (served via authenticated API endpoint) -->
+        <div v-if="prompt.audio_exists" class="mb-3">
+          <audio controls preload="none" class="w-full" style="height:32px">
+            <source :src="getPromptAudioUrl(prompt.stem)" type="audio/wav" />
           </audio>
         </div>
 
@@ -59,9 +63,19 @@
 
 <script setup>
 import { ref, onMounted, reactive } from 'vue'
-import { getPrompts, updatePrompt, regeneratePrompt, uploadPromptAudio } from '@/api/prompts'
+import { getPrompts, updatePrompt, regeneratePrompt, uploadPromptAudio, getPromptAudioUrl } from '@/api/prompts'
 import { useUiStore } from '@/stores/ui'
 import LoadingSpinner from '@/components/ui/LoadingSpinner.vue'
+
+const PROMPT_LABELS = {
+  language_menu:  'Language Selection Menu',
+  please_wait_ar: 'Please Wait (Arabic)',
+  please_wait_en: 'Please Wait (English)',
+  please_ask_ar:  'Ask for Input (Arabic)',
+  please_ask_en:  'Ask for Input (English)',
+  farewell_ar:    'Farewell / Goodbye (Arabic)',
+  farewell_en:    'Farewell / Goodbye (English)',
+}
 
 const uiStore     = useUiStore()
 const prompts     = ref([])

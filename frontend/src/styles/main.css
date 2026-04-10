@@ -3,12 +3,14 @@
 @tailwind utilities;
 
 :root {
-  --fss-bronze: #c49266;
-  --fss-bronze-light: #D4A373;
-  --fss-bronze-dark: #8B5E3C;
-  --sidebar-bg: #1A2035;
-  --sidebar-hover: #252F4A;
-  --sidebar-active: #2F3D5C;
+  --fss-navy: #0B1F3A;
+  --fss-navy-light: #1A2F50;
+  --fss-bronze: #C89B3C;
+  --fss-bronze-light: #D4AF6A;
+  --fss-bronze-dark: #A07828;
+  --sidebar-bg: #0B1F3A;
+  --sidebar-hover: #1A2F50;
+  --sidebar-active: #243D6A;
   --content-bg: #F4F6FA;
   --card-bg: #FFFFFF;
   --severity-high: #EF4444;

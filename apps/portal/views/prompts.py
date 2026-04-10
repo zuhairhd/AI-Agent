@@ -6,6 +6,7 @@ import logging
 import os
 
 from django.conf import settings
+from django.http import FileResponse
 from rest_framework import status
 from rest_framework.decorators import api_view, parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -51,12 +52,23 @@ def prompt_detail_view(request, stem):
     if request.method == 'GET':
         return Response(CallPromptSerializer(prompt).data)
 
-    # PUT — update text and/or enabled
+    # PUT — update text and/or enabled; auto-queue TTS regen when text changes
+    old_text = prompt.text
     allowed = ('text', 'enabled', 'language')
     for k, v in request.data.items():
         if k in allowed:
             setattr(prompt, k, v)
     prompt.save()
+
+    text_changed = 'text' in request.data and request.data['text'] != old_text
+    if text_changed:
+        try:
+            from apps.portal.tasks import regenerate_prompt_audio
+            regenerate_prompt_audio.delay(stem)
+            logger.info(f"[prompts] Queued audio regen after text change: {stem}")
+        except Exception as e:
+            logger.warning(f"[prompts] Could not queue audio regen for {stem}: {e}")
+
     return Response(CallPromptSerializer(prompt).data)
 
 
@@ -156,3 +168,18 @@ def prompt_upload_audio_view(request, stem):
 
     logger.info(f"[prompts] Custom audio uploaded for {stem}")
     return Response(CallPromptSerializer(prompt).data)
+
+
+@api_view(['GET'])
+def prompt_audio_serve_view(request, stem):
+    """
+    GET /api/portal/prompts/<stem>/audio/
+    Serve the prompt WAV file for in-browser playback.
+    Returns 404 if the audio file does not exist on disk.
+    """
+    sounds_dir = getattr(settings, 'ASTERISK_SOUNDS_DIR', '/var/lib/asterisk/sounds/custom')
+    wav_path = os.path.join(sounds_dir, f"{stem}.wav")
+    if not os.path.isfile(wav_path):
+        return Response({'detail': 'Audio file not found.'}, status=status.HTTP_404_NOT_FOUND)
+    logger.info(f"[prompts] Serving audio: {wav_path}")
+    return FileResponse(open(wav_path, 'rb'), content_type='audio/wav', filename=f"{stem}.wav")

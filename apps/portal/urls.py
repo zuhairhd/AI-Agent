@@ -1,7 +1,10 @@
 from django.urls import path
 from .views.auth import login_view, logout_view, me_view
 from .views.dashboard import dashboard_view
-from .views.calls import calls_list_view, call_detail_view
+from .views.calls import (
+    calls_list_view, call_detail_view,
+    recording_serve_view, bulk_delete_view, bulk_mark_view, calls_export_csv_view,
+)
 from .views.alerts import alerts_list_view, alert_detail_view, resend_alert_email_view
 from .views.followups import (
     followups_list_view, followup_detail_view,
@@ -17,7 +20,7 @@ from .views.knowledge import (
 )
 from .views.prompts import (
     prompts_list_view, prompt_detail_view,
-    prompt_regenerate_view, prompt_upload_audio_view,
+    prompt_regenerate_view, prompt_upload_audio_view, prompt_audio_serve_view,
 )
 
 urlpatterns = [
@@ -33,11 +36,15 @@ urlpatterns = [
     path('realtime/', realtime_summary_view, name='portal_realtime'),
 
     # Calls
-    path('calls/',                         calls_list_view,     name='portal_calls_list'),
-    path('calls/delete-all/',              delete_all_calls_view, name='portal_calls_delete_all'),
-    path('calls/<uuid:pk>/',               call_detail_view,    name='portal_call_detail'),
-    path('calls/<uuid:pk>/export/',        export_call_view,    name='portal_call_export'),
-    path('calls/<uuid:pk>/delete/',        delete_call_view,    name='portal_call_delete'),
+    path('calls/',                                          calls_list_view,       name='portal_calls_list'),
+    path('calls/delete-all/',                               delete_all_calls_view, name='portal_calls_delete_all'),
+    path('calls/bulk-delete/',                              bulk_delete_view,      name='portal_calls_bulk_delete'),
+    path('calls/bulk-mark/',                                bulk_mark_view,        name='portal_calls_bulk_mark'),
+    path('calls/export-csv/',                               calls_export_csv_view, name='portal_calls_export_csv'),
+    path('calls/<uuid:pk>/',                                call_detail_view,      name='portal_call_detail'),
+    path('calls/<uuid:pk>/export/',                         export_call_view,      name='portal_call_export'),
+    path('calls/<uuid:pk>/delete/',                         delete_call_view,      name='portal_call_delete'),
+    path('calls/<uuid:pk>/recording/<uuid:turn_id>/',       recording_serve_view,  name='portal_call_recording'),
 
     # Alerts
     path('alerts/',                          alerts_list_view,        name='portal_alerts_list'),
@@ -60,7 +67,8 @@ urlpatterns = [
     path('prompts/',                              prompts_list_view,       name='portal_prompts_list'),
     path('prompts/<str:stem>/',                   prompt_detail_view,      name='portal_prompt_detail'),
     path('prompts/<str:stem>/regenerate/',        prompt_regenerate_view,  name='portal_prompt_regen'),
-    path('prompts/<str:stem>/upload-audio/',      prompt_upload_audio_view, name='portal_prompt_audio'),
+    path('prompts/<str:stem>/upload-audio/',      prompt_upload_audio_view,  name='portal_prompt_audio'),
+    path('prompts/<str:stem>/audio/',             prompt_audio_serve_view,   name='portal_prompt_audio_serve'),
 
     # Reports
     path('reports/', reports_view, name='portal_reports'),

@@ -54,7 +54,7 @@
       <!-- Transcript -->
       <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-4">
         <h2 class="text-sm font-semibold text-gray-700 mb-4">Conversation</h2>
-        <TranscriptViewer :turns="call.turns" />
+        <TranscriptViewer :turns="call.turns" :sessionId="call.id" />
       </div>
 
       <!-- Staff Notes -->
