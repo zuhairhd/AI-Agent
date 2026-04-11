@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 def build_notification_context(alert) -> dict:
     """Build template context dict from an Alert instance."""
+    from apps.portal.models import SiteConfig
     session = alert.session
     return {
         'alert':      alert,
@@ -25,7 +26,7 @@ def build_notification_context(alert) -> dict:
             f"{settings.PORTAL_BASE_URL}/portal/calls/{session.id}"
             if session else settings.PORTAL_BASE_URL
         ),
-        'company':    getattr(settings, 'COMPANY_NAME', 'Future Smart Support'),
+        'company':    SiteConfig.get_solo().company_name,
     }
 
 
@@ -40,13 +41,13 @@ class EmailChannel(NotificationChannel):
     name = 'email'
 
     def send(self, alert, recipients: list) -> None:
-        from apps.portal.models import Alert as AlertModel
+        from apps.portal.models import Alert as AlertModel, SiteConfig
 
         context = build_notification_context(alert)
         html_body = render_to_string('portal/email/alert_notification.html', context)
         text_body = render_to_string('portal/email/alert_notification.txt',  context)
 
-        company = getattr(settings, 'COMPANY_NAME', 'Alert')
+        company = SiteConfig.get_solo().company_name
         send_mail(
             subject=f"[{company}] {alert.title}",
             message=text_body,

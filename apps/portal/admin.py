@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Alert, FollowUp, NotificationPreference, CallPrompt, FollowUpActivity
+from .models import Alert, FollowUp, NotificationPreference, CallPrompt, FollowUpActivity, SiteConfig
 
 
 @admin.register(Alert)
@@ -35,3 +35,24 @@ class CallPromptAdmin(admin.ModelAdmin):
 class NotificationPreferenceAdmin(admin.ModelAdmin):
     list_display  = ('user', 'email_enabled', 'sms_enabled', 'whatsapp_enabled')
     search_fields = ('user__username', 'user__email', 'notify_email')
+
+
+@admin.register(SiteConfig)
+class SiteConfigAdmin(admin.ModelAdmin):
+    fieldsets = (
+        ('Branding', {
+            'fields': ('company_name', 'product_name', 'primary_color', 'accent_color'),
+        }),
+        ('Contact', {
+            'fields': ('contact_email', 'gsm', 'website'),
+        }),
+        ('Operations', {
+            'fields': ('office_hours', 'notify_all_calls', 'follow_up_emails'),
+        }),
+    )
+
+    def has_add_permission(self, request):
+        return not SiteConfig.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False

@@ -59,14 +59,13 @@ LANGUAGE RULE:
 - Do not switch to Arabic unless the caller clearly asks to switch language.
 
 BUSINESS CONTEXT:
-- Company name: Future Smart Support.
-- Product name: VoiceGate AI.
-- VoiceGate AI is an AI receptionist system for businesses.
+- Company name: {company}.
+- Product name: {product_name}.
+- {product_name} is an AI receptionist system for businesses.
 - It answers calls automatically, supports Arabic and English, captures customer details, and helps businesses avoid missed calls.
 
 OFFICE HOURS:
-- Sunday to Thursday
-- 9:00 AM to 5:00 PM
+- {office_hours}
 
 PACKAGE GUIDANCE:
 - Basic: suitable for very small businesses or businesses starting with simple automation.
@@ -142,14 +141,13 @@ ARABIC_SYSTEM_PROMPT = """
 - لا تخلط العربية بالإنجليزية إلا إذا طلب المتصل ذلك بوضوح.
 
 معلومات العمل:
-- اسم الشركة: Future Smart Support
-- اسم المنتج: VoiceGate AI
-- VoiceGate AI هو نظام موظف استقبال ذكي للشركات.
+- اسم الشركة: {company}
+- اسم المنتج: {product_name}
+- {product_name} هو نظام موظف استقبال ذكي للشركات.
 - يرد على المكالمات تلقائيًا، ويدعم العربية والإنجليزية، ويساعد الشركات على عدم فقدان المكالمات والفرص.
 
 أوقات العمل:
-- من الأحد إلى الخميس
-- من 9 صباحًا إلى 5 مساءً
+- {office_hours}
 
 توجيهات الباقات:
 - الأساسية: مناسبة للمشاريع الصغيرة جدًا.
@@ -348,10 +346,16 @@ def _normalize_language(language: str) -> str:
 
 
 def _get_system_prompt(language: str) -> str:
-    company = getattr(settings, "COMPANY_NAME", "Future Smart Support")
+    from apps.portal.models import SiteConfig
+    cfg = SiteConfig.get_solo()
+    fmt = dict(
+        company=cfg.company_name,
+        product_name=cfg.product_name,
+        office_hours=cfg.office_hours,
+    )
     if _normalize_language(language) == "ar":
-        return ARABIC_SYSTEM_PROMPT.format(company=company)
-    return ENGLISH_SYSTEM_PROMPT.format(company=company)
+        return ARABIC_SYSTEM_PROMPT.format(**fmt)
+    return ENGLISH_SYSTEM_PROMPT.format(**fmt)
 
 
 def _build_messages(question: str, history: list, language: str = "en") -> list:
@@ -599,10 +603,12 @@ def process_turn(
 
     # 1) Rule-based closing
     if _rule_based_closing(question):
+        from apps.portal.models import SiteConfig
+        _company = SiteConfig.get_solo().company_name
         farewell = (
-            "Thank you for calling Future Smart Support. Have a great day!"
+            f"Thank you for calling {_company}. Have a great day!"
             if language == "en"
-            else "شكرًا لاتصالك بـ Future Smart Support. يومك سعيد!"
+            else f"شكرًا لاتصالك بـ {_company}. يومك سعيد!"
         )
         result = {
             "answer": farewell,

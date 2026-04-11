@@ -32,7 +32,8 @@ MODEL_NAME = "gpt-4o"
 # ---------------------------------------------------------------------------
 
 def _company_name() -> str:
-    return getattr(settings, "COMPANY_NAME", "Future Smart Support")
+    from apps.portal.models import SiteConfig
+    return SiteConfig.get_solo().company_name
 
 
 def _follow_up_dict(enabled: bool = False, kind: str = "", note: str = "") -> Dict[str, Any]:

@@ -246,3 +246,53 @@ class FollowUpActivity(models.Model):
 
     def __str__(self):
         return f"[{self.action}] on followup={self.followup_id} by {self.user_id}"
+
+
+class SiteConfig(models.Model):
+    """
+    Singleton site-wide configuration.
+
+    Always use SiteConfig.get_solo() — never instantiate directly.
+    Enforced singleton: save() always writes to pk=1.
+    """
+
+    company_name  = models.CharField(max_length=128, default='Future Smart Support')
+    product_name  = models.CharField(max_length=128, default='VoiceGate AI')
+    contact_email = models.EmailField(blank=True)
+    gsm           = models.CharField(max_length=32, blank=True)
+    website       = models.CharField(max_length=256, blank=True)
+    office_hours  = models.CharField(
+        max_length=256,
+        default='Sunday to Thursday, 9:00 AM to 5:00 PM',
+    )
+    primary_color = models.CharField(max_length=16, default='#1a56db')
+    accent_color  = models.CharField(max_length=16, default='#7e3af2')
+    notify_all_calls = models.BooleanField(
+        default=False,
+        help_text='Send an email notification for every completed call site-wide.',
+    )
+    follow_up_emails = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='JSON list of email addresses that receive follow-up notifications.',
+    )
+
+    class Meta:
+        db_table = 'portal_site_config'
+        verbose_name = 'Site Configuration'
+        verbose_name_plural = 'Site Configuration'
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        pass  # prevent deletion of the singleton
+
+    @classmethod
+    def get_solo(cls) -> 'SiteConfig':
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return f"Site Config — {self.company_name}"
