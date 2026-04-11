@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from apps.voice_calls.models import CallSession, ConversationTurn
-from .models import Alert, FollowUp, NotificationPreference, CallPrompt, FollowUpActivity
+from .models import Alert, FollowUp, NotificationPreference, CallPrompt, FollowUpActivity, SiteConfig
 
 User = get_user_model()
 
@@ -139,4 +139,16 @@ class NotificationPreferenceSerializer(serializers.ModelSerializer):
             'email_enabled', 'notify_on', 'notify_email', 'notify_all_calls',
             'sms_enabled', 'sms_number',
             'whatsapp_enabled', 'whatsapp_number',
+        )
+
+
+class SiteConfigSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = SiteConfig
+        fields = (
+            'company_name', 'product_name',
+            'contact_email', 'gsm', 'website',
+            'office_hours',
+            'primary_color', 'accent_color',
+            'notify_all_calls', 'follow_up_emails',
         )

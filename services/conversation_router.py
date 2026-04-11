@@ -126,6 +126,11 @@ def _intent_reply(intent_data: Dict[str, Any], question: str, language: str) -> 
     intent = intent_data["intent"]
     entities = intent_data.get("entities", {})
 
+    from apps.portal.models import SiteConfig
+    _cfg = SiteConfig.get_solo()
+    _product = _cfg.product_name
+    _hours = _cfg.office_hours
+
     if language == "ar":
         mapping = {
             "closing": {
@@ -153,7 +158,7 @@ def _intent_reply(intent_data: Dict[str, Any], question: str, language: str) -> 
                 **_follow_up_dict(True, "office_visit", "المتصل سأل عن زيارة المكتب أو طلب زيارة."),
             },
             "product_info": {
-                "answer": "VoiceGate AI يرد على مكالمات عملك تلقائيًا ويخدم عملاءك على مدار الساعة. غالبًا الباقة القياسية هي الأنسب لمعظم الشركات. هل تحب أعرفك عليها؟",
+                "answer": f"{_product} يرد على مكالمات عملك تلقائيًا ويخدم عملاءك على مدار الساعة. غالبًا الباقة القياسية هي الأنسب لمعظم الشركات. هل تحب أعرفك عليها؟",
                 "transfer": False,
                 "reason": "",
                 "closing": False,
@@ -243,7 +248,7 @@ def _intent_reply(intent_data: Dict[str, Any], question: str, language: str) -> 
             **_follow_up_dict(True, "callback", "Caller requested a human agent."),
         },
         "office_visit": {
-            "answer": "You’re welcome to visit us during office hours, from Sunday to Thursday, 9 AM to 5 PM. Would you prefer to visit the office or have our team contact you?",
+            "answer": f"You’re welcome to visit us during office hours, {_hours}. Would you prefer to visit the office or have our team contact you?",
             "transfer": False,
             "reason": "",
             "closing": False,
@@ -251,7 +256,7 @@ def _intent_reply(intent_data: Dict[str, Any], question: str, language: str) -> 
             **_follow_up_dict(True, "office_visit", "Caller asked about visiting the office."),
         },
         "product_info": {
-            "answer": "VoiceGate AI answers business calls automatically and helps serve customers around the clock. The Standard package is usually the best fit for most businesses. Would you like a quick overview?",
+            "answer": f"{_product} answers business calls automatically and helps serve customers around the clock. The Standard package is usually the best fit for most businesses. Would you like a quick overview?",
             "transfer": False,
             "reason": "",
             "closing": False,

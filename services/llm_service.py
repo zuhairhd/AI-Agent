@@ -402,16 +402,21 @@ def _rule_based_business_reply(question: str, language: str = "en") -> tuple:
     q = (question or "").strip()
     lang = _normalize_language(language)
 
+    from apps.portal.models import SiteConfig
+    _cfg = SiteConfig.get_solo()
+    _product = _cfg.product_name
+    _hours = _cfg.office_hours
+
     if lang == "en":
         if _matches_any(q, _OFFICE_VISIT_PATTERNS_EN):
             return (
-                "You’re welcome to visit us during office hours, from Sunday to Thursday, 9 AM to 5 PM. How can I assist you today?",
+                f"You’re welcome to visit us during office hours, {_hours}. How can I assist you today?",
                 _build_follow_up(True, "office_visit", "Caller asked about visiting the office."),
             )
 
         if _matches_any(q, _PRODUCT_QUESTION_PATTERNS_EN):
             return (
-                "VoiceGate AI is an AI receptionist system that answers calls automatically in Arabic and English and helps businesses manage customer calls professionally. Would you like a quick overview of our packages?",
+                f"{_product} is an AI receptionist system that answers calls automatically in Arabic and English and helps businesses manage customer calls professionally. Would you like a quick overview of our packages?",
                 _build_follow_up(True, "inquiry", "Caller asked what the product is."),
             )
 
@@ -447,7 +452,7 @@ def _rule_based_business_reply(question: str, language: str = "en") -> tuple:
 
         if _matches_any(q, _CONFUSION_PATTERNS_EN):
             return (
-                "Certainly. VoiceGate AI answers business calls automatically and helps collect customer details. Would you like me to explain the recommended package?",
+                f"Certainly. {_product} answers business calls automatically and helps collect customer details. Would you like me to explain the recommended package?",
                 _build_follow_up(True, "inquiry", "Caller said they did not understand and asked for a simpler explanation."),
             )
 
@@ -466,7 +471,7 @@ def _rule_based_business_reply(question: str, language: str = "en") -> tuple:
 
         if _matches_any(q, _PRODUCT_QUESTION_PATTERNS_AR):
             return (
-                "VoiceGate AI هو نظام موظف استقبال ذكي يرد على المكالمات تلقائيًا بالعربية والإنجليزية. هل ترغب في معرفة الباقات المتاحة؟",
+                f"{_product} هو نظام موظف استقبال ذكي يرد على المكالمات تلقائيًا بالعربية والإنجليزية. هل ترغب في معرفة الباقات المتاحة؟",
                 _build_follow_up(True, "inquiry", "المتصل سأل عن المنتج أو الخدمات."),
             )
 
@@ -502,7 +507,7 @@ def _rule_based_business_reply(question: str, language: str = "en") -> tuple:
 
         if _matches_any(q, _CONFUSION_PATTERNS_AR):
             return (
-                "بكل بساطة، VoiceGate AI يرد على مكالمات العملاء تلقائيًا ويساعد الشركات على عدم فقدان أي اتصال. هل ترغب أن أشرح الباقة القياسية أولًا؟",
+                f"بكل بساطة، {_product} يرد على مكالمات العملاء تلقائيًا ويساعد الشركات على عدم فقدان أي اتصال. هل ترغب أن أشرح الباقة القياسية أولًا؟",
                 _build_follow_up(True, "inquiry", "المتصل لم يفهم وطلب توضيحًا أبسط."),
             )
 

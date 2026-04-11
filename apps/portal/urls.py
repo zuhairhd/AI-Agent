@@ -11,7 +11,7 @@ from .views.followups import (
     followup_claim_view, followup_add_note_view,
 )
 from .views.reports import reports_view
-from .views.settings_view import notification_preferences_view
+from .views.settings_view import notification_preferences_view, site_config_view
 from .views.realtime import realtime_summary_view
 from .views.export_view import export_call_view, delete_call_view, delete_all_calls_view
 from .views.knowledge import (
@@ -75,4 +75,5 @@ urlpatterns = [
 
     # Settings
     path('settings/notifications/', notification_preferences_view, name='portal_notif_prefs'),
+    path('settings/site-config/',   site_config_view,              name='portal_site_config'),
 ]

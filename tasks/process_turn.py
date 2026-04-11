@@ -432,8 +432,8 @@ def process_turn(self, turn_id: str) -> dict:
     history = _build_history(session)
 
     if intent_data.get("closing"):
-        from django.conf import settings as _settings
-        _company = getattr(_settings, 'COMPANY_NAME', 'us')
+        from apps.portal.models import SiteConfig
+        _company = SiteConfig.get_solo().company_name
         result: Dict[str, Any] = {
             "answer": (
                 f"شكرًا لاتصالك بـ {_company}. مع السلامة."

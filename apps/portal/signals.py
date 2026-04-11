@@ -18,7 +18,8 @@ def evaluate_call_alerts(sender, instance, created, **kwargs):
     from apps.portal.tasks import send_alert_notification
 
     session = instance
-    alerts_created = []
+    alerts_created = []          # problem alerts — will set needs_followup
+    notify_only_alerts = []      # informational only — no needs_followup
 
     # ── 1. Failed / dropped call ────────────────────────────────────────────
     if session.status == CallSession.Status.FAILED:
@@ -81,12 +82,43 @@ def evaluate_call_alerts(sender, instance, created, **kwargs):
                 )
                 alerts_created.append(a)
 
-    # ── Mark session as needs_followup if any alert was created ─────────────
+    # ── 5. notify_all_calls: normal completed call ───────────────────────────
+    if (
+        session.status == CallSession.Status.COMPLETED
+        and session.total_turns > 0
+        and not session.transfer_triggered
+    ):
+        from apps.portal.models import NotificationPreference, SiteConfig
+        site_cfg = SiteConfig.get_solo()
+        site_notify = site_cfg.notify_all_calls
+        user_notify = NotificationPreference.objects.filter(
+            email_enabled=True, notify_all_calls=True
+        ).exists()
+
+        if site_notify or user_notify:
+            if not Alert.objects.filter(
+                session=session, alert_type=Alert.AlertType.CALL_COMPLETED
+            ).exists():
+                a = Alert.objects.create(
+                    session=session,
+                    alert_type=Alert.AlertType.CALL_COMPLETED,
+                    severity=Alert.Severity.LOW,
+                    title=f"Call completed — {session.caller_number}",
+                    description=(
+                        f"Session {session.id} completed normally "
+                        f"with {session.total_turns} turn(s). "
+                        f"Duration: {session.duration_seconds or 0}s."
+                    ),
+                    send_email=True,
+                )
+                notify_only_alerts.append(a)  # informational; does NOT set needs_followup
+
+    # ── Mark session as needs_followup for problem alerts only ──────────────
     if alerts_created:
         CallSession.objects.filter(pk=session.pk).update(needs_followup=True)
 
-    # ── Queue email notifications ─────────────────────────────────────────────
-    for alert in alerts_created:
+    # ── Queue email notifications (both problem and informational) ────────────
+    for alert in alerts_created + notify_only_alerts:
         try:
             send_alert_notification.delay(str(alert.id))
             logger.info(f"[portal.signals] Queued notification for alert {alert.id} ({alert.alert_type})")

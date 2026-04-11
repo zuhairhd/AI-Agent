@@ -16,6 +16,7 @@ class Alert(TimeStampedModel):
         DROPPED_CALL     = 'dropped_call',     'Call Dropped'
         REPEATED_FAILURE = 'repeated_failure', 'Repeated Failed Interaction'
         UNRESOLVED       = 'unresolved',       'Call Unresolved'
+        CALL_COMPLETED   = 'call_completed',   'Call Completed'
 
     class Severity(models.TextChoices):
         HIGH   = 'high',   'High'

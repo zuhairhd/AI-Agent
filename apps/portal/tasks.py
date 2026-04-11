@@ -42,6 +42,15 @@ def send_alert_notification(self, alert_id: str) -> None:
         env_emails = [e.strip() for e in getattr(settings, 'PORTAL_NOTIFICATION_EMAILS', []) if e.strip()]
         recipients = env_emails
 
+    # Always also include SiteConfig follow_up_emails (deduped)
+    try:
+        from apps.portal.models import SiteConfig
+        for addr in (SiteConfig.get_solo().follow_up_emails or []):
+            if addr and addr not in recipients:
+                recipients.append(addr)
+    except Exception as fe:
+        logger.warning(f"[portal.tasks] Could not read SiteConfig follow_up_emails: {fe}")
+
     if not recipients:
         logger.warning(f"[portal.tasks] No recipients for alert {alert_id}; email not sent")
         return
