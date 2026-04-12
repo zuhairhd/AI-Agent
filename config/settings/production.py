@@ -24,6 +24,8 @@ DEFAULT_FROM_EMAIL = os.environ.get(
 #DEFAULT_FROM_EMAIL = "Future Smart Support <zuhairhd@gmail.com>"
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
+# Server IP address
+APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://172.16.100.110").rstrip("/")
 
 # 🔓 Basic
 DEBUG = False
