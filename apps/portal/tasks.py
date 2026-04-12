@@ -12,38 +12,95 @@ def send_alert_notification(self, alert_id: str) -> None:
     """
     Send email notification for an alert.
 
-    Sends when alert.send_email is True.
-    Recipients are collected from NotificationPreference records first,
-    then env fallback, and always merged with SiteConfig.follow_up_emails.
+    Recipient resolution — four levels, in order:
+
+    1. NotificationPreference records (email_enabled=True)
+       - For CALL_COMPLETED alerts: include user only if SiteConfig.notify_all_calls=True
+         OR the user's own notify_all_calls=True.
+       - For all other types: apply per-user notify_on type filter (empty list = receive all).
+    2. PORTAL_NOTIFICATION_EMAILS env var — used as fallback when level 1 yields nothing.
+    3. SiteConfig.follow_up_emails — always merged into final list.
+    4. SiteConfig.contact_email — final safety-net if all other sources are empty.
+
+    Any address that is blank or already in the list is skipped (deduplication).
     """
     from apps.portal.email_service import get_dispatcher
-    from apps.portal.models import Alert, NotificationPreference
+    from apps.portal.models import Alert, NotificationPreference, SiteConfig
 
+    # ── Fetch alert ──────────────────────────────────────────────────────────
     try:
         alert = Alert.objects.select_related("session").get(pk=alert_id)
     except Alert.DoesNotExist:
-        logger.warning(f"[portal.tasks] Alert {alert_id} not found; skipping notification")
+        logger.warning("[portal.tasks] Alert %s not found; skipping notification", alert_id)
         return
 
     if not alert.send_email:
-        logger.debug(f"[portal.tasks] Alert {alert_id} has send_email=False; skipping")
+        logger.info("[portal.tasks] Alert %s has send_email=False; skipping", alert_id)
         return
+
+    # ── Load global config ───────────────────────────────────────────────────
+    try:
+        site_cfg = SiteConfig.get_solo()
+    except Exception as exc:
+        logger.error("[portal.tasks] Cannot load SiteConfig: %s", exc)
+        site_cfg = None
+
+    is_call_completed = (alert.alert_type == Alert.AlertType.CALL_COMPLETED)
+    site_notify_all = bool(site_cfg and site_cfg.notify_all_calls)
+
+    logger.info(
+        "[portal.tasks] Resolving recipients for alert=%s type=%s "
+        "is_call_completed=%s site_notify_all=%s",
+        alert_id, alert.alert_type, is_call_completed, site_notify_all,
+    )
 
     recipients: list[str] = []
 
-    # Per-user notification preferences
+    # ── Level 1: Per-user preferences ────────────────────────────────────────
     prefs = NotificationPreference.objects.filter(email_enabled=True).select_related("user")
+    pref_count = 0
     for pref in prefs:
-        if pref.notify_on and alert.alert_type not in pref.notify_on:
-            continue
+        pref_count += 1
+
+        if is_call_completed:
+            # CALL_COMPLETED: only include if global flag is on OR user opted in
+            if not site_notify_all and not pref.notify_all_calls:
+                logger.debug(
+                    "[portal.tasks] Skip user_id=%s for CALL_COMPLETED: "
+                    "site_notify_all=False and user notify_all_calls=False",
+                    pref.user_id,
+                )
+                continue
+        else:
+            # All other types: apply per-user type filter (empty list = all types)
+            if pref.notify_on and alert.alert_type not in pref.notify_on:
+                logger.debug(
+                    "[portal.tasks] Skip user_id=%s: alert_type=%s not in notify_on=%s",
+                    pref.user_id, alert.alert_type, pref.notify_on,
+                )
+                continue
 
         addr = (pref.notify_email or getattr(pref.user, "email", "") or "").strip()
         if addr and addr not in recipients:
             recipients.append(addr)
+            logger.debug(
+                "[portal.tasks] + user recipient: %s (user_id=%s)", addr, pref.user_id
+            )
+        elif not addr:
+            logger.warning(
+                "[portal.tasks] User %s (id=%s) has no email address; "
+                "set an address in their profile or NotificationPreference.notify_email",
+                getattr(pref.user, "username", "?"), pref.user_id,
+            )
 
-    # Fallback to env-configured list
+    logger.info(
+        "[portal.tasks] Level-1 done: %d prefs scanned, %d recipients so far",
+        pref_count, len(recipients),
+    )
+
+    # ── Level 2: Env fallback (only when level 1 produced nothing) ───────────
     if not recipients:
-        env_emails = [
+        env_emails: list[str] = [
             e.strip()
             for e in getattr(settings, "PORTAL_NOTIFICATION_EMAILS", [])
             if e and e.strip()
@@ -51,30 +108,67 @@ def send_alert_notification(self, alert_id: str) -> None:
         for addr in env_emails:
             if addr not in recipients:
                 recipients.append(addr)
+        if env_emails:
+            logger.info(
+                "[portal.tasks] Level-2 env fallback applied: %s", env_emails
+            )
+        else:
+            logger.debug(
+                "[portal.tasks] Level-2 PORTAL_NOTIFICATION_EMAILS is empty; no-op"
+            )
 
-    # Always merge SiteConfig follow_up_emails
-    try:
-        from apps.portal.models import SiteConfig
-
-        site_cfg = SiteConfig.get_solo()
+    # ── Level 3: Always merge SiteConfig.follow_up_emails ────────────────────
+    if site_cfg:
+        added_fu: list[str] = []
         for addr in (site_cfg.follow_up_emails or []):
             addr = (addr or "").strip()
             if addr and addr not in recipients:
                 recipients.append(addr)
-    except Exception as exc:
-        logger.warning(f"[portal.tasks] Could not read SiteConfig follow_up_emails: {exc}")
+                added_fu.append(addr)
+        if added_fu:
+            logger.info(
+                "[portal.tasks] Level-3 merged SiteConfig.follow_up_emails: %s", added_fu
+            )
+
+    # ── Level 4: Final fallback — SiteConfig.contact_email ───────────────────
+    if not recipients and site_cfg and site_cfg.contact_email:
+        addr = site_cfg.contact_email.strip()
+        if addr:
+            recipients.append(addr)
+            logger.warning(
+                "[portal.tasks] Level-4 safety-net: no other recipients configured for "
+                "alert %s; using SiteConfig.contact_email=%s. "
+                "Fix: add email to a user profile, or set SiteConfig.follow_up_emails.",
+                alert_id, addr,
+            )
 
     if not recipients:
-        logger.warning(f"[portal.tasks] No recipients for alert {alert_id}; email not sent")
+        logger.warning(
+            "[portal.tasks] No recipients resolved for alert %s (type=%s); "
+            "email NOT sent. To fix: (a) ensure staff users have email addresses and "
+            "NotificationPreference records, (b) set SiteConfig.follow_up_emails, "
+            "or (c) set SiteConfig.contact_email as a catch-all.",
+            alert_id, alert.alert_type,
+        )
         return
+
+    logger.info(
+        "[portal.tasks] Dispatching alert %s (type=%s) to %d recipient(s): %s",
+        alert_id, alert.alert_type, len(recipients), recipients,
+    )
 
     try:
         get_dispatcher().dispatch(alert, recipients)
-        logger.info(f"[portal.tasks] Alert {alert_id} emailed to: {recipients}")
+        logger.info("[portal.tasks] Alert %s dispatched successfully to: %s", alert_id, recipients)
     except Exception as exc:
-        logger.error(f"[portal.tasks] Dispatch failed for alert {alert_id}: {exc}", exc_info=True)
+        logger.error(
+            "[portal.tasks] Dispatch failed for alert %s: %s",
+            alert_id, exc, exc_info=True,
+        )
         raise self.retry(exc=exc, countdown=60)
 
+
+# ── Audio helpers ─────────────────────────────────────────────────────────────
 
 def _run_ffmpeg(cmd: list[str], stem: str, label: str) -> None:
     try:

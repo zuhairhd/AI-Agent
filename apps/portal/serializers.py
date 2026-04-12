@@ -141,6 +141,20 @@ class NotificationPreferenceSerializer(serializers.ModelSerializer):
             'whatsapp_enabled', 'whatsapp_number',
         )
 
+    def validate_notify_on(self, value):
+        """
+        Ensure every entry in the notify_on list is a known AlertType key.
+        An empty list is valid — it means 'receive all alert types'.
+        """
+        valid_types = {choice[0] for choice in Alert.AlertType.choices}
+        bad = [v for v in (value or []) if v not in valid_types]
+        if bad:
+            raise serializers.ValidationError(
+                f"Unknown alert type(s): {bad}. "
+                f"Valid values: {sorted(valid_types)}"
+            )
+        return value
+
 
 class SiteConfigSerializer(serializers.ModelSerializer):
     class Meta:

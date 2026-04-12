@@ -44,20 +44,60 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 USE_X_FORWARDED_HOST = True
 
 # 🧾 Logging
+# Captures: Django, all app loggers (apps.portal.*, tasks.*), and Celery.
+# Without explicit entries here, app-level logger.info() calls are silently
+# discarded in production — making email delivery failures invisible.
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{asctime} {levelname} {name} {message}",
+            "style": "{",
+        },
+    },
     "handlers": {
         "file": {
-            "level": "INFO",
+            "level": "DEBUG",
             "class": "logging.FileHandler",
             "filename": os.path.join(BASE_DIR, "logs/app.log"),
+            "formatter": "verbose",
+        },
+        "console": {
+            "level": "WARNING",
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
         },
     },
     "loggers": {
+        # Django internals
         "django": {
             "handlers": ["file"],
             "level": "INFO",
+            "propagate": False,
+        },
+        # Portal app — signals, tasks, email_service
+        "apps.portal": {
+            "handlers": ["file", "console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+        # Celery periodic/SLA tasks
+        "tasks": {
+            "handlers": ["file", "console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+        # Voice-call processing
+        "apps.voice_calls": {
+            "handlers": ["file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        # Catch-all for any other app loggers
+        "": {
+            "handlers": ["file"],
+            "level": "WARNING",
             "propagate": True,
         },
     },

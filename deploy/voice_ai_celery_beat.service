@@ -7,7 +7,7 @@ Type=simple
 User=agent
 Group=agent
 WorkingDirectory=/home/agent/voice_ai_agent
-Environment="DJANGO_SETTINGS_MODULE=config.settings.base"
+Environment="DJANGO_SETTINGS_MODULE=config.settings.production"
 ExecStart=/home/agent/voice_ai_agent/venv/bin/celery \
     -A config beat \
     --loglevel=info \
