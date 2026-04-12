@@ -563,6 +563,9 @@ def process_turn(self, turn_id: str) -> dict:
 
     elif closing:
         _finalize_session(session, CallSession.Status.COMPLETED)
+        # Refresh and save to fire post_save signal (e.g. notify_all_calls alert)
+        session.refresh_from_db()
+        session.save(update_fields=["status"])
         logger.info(f"[process_turn] closing detected — session finalized | session={session.id}")
 
     else:

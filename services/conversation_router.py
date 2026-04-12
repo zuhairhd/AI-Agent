@@ -45,9 +45,10 @@ def _follow_up_dict(enabled: bool = False, kind: str = "", note: str = "") -> Di
 
 
 def _closing_reply(language: str) -> str:
+    company = _company_name()
     if language == "ar":
-        return "شكرًا لاتصالك. مع السلامة."
-    return "Thank you for calling. Goodbye."
+        return f"شكرًا لاتصالك بـ {company}. مع السلامة."
+    return f"Thank you for calling {company}. Goodbye."
 
 
 def _transfer_reply(language: str) -> str:
@@ -392,6 +393,18 @@ def route_turn(
     direct = _intent_reply(intent_data, question, language)
 
     if direct:
+        # Don't repeat the exact same canned answer that was already given last turn
+        candidate = (direct.get("answer") or "")[:80]
+        if candidate:
+            last_assistant = next(
+                (m["content"] for m in reversed(history) if m.get("role") == "assistant"),
+                "",
+            )
+            if last_assistant and last_assistant.startswith(candidate):
+                logger.debug(f"route_turn: skipping repeated canned answer for intent={intent_data.get('intent')}")
+                direct = None
+
+    if direct:
         return direct
 
     client = OpenAI(api_key=settings.OPENAI_API_KEY)
@@ -437,6 +450,20 @@ def route_turn(
 
     parsed = _parse_tokens(raw_reply)
     clean_reply = _shorten_for_phone(parsed["clean_reply"], language)
+
+    # Guard: tokens-only reply leaves clean_reply empty — provide a spoken fallback
+    if not clean_reply:
+        if parsed["closing"]:
+            clean_reply = _closing_reply(language)
+        elif parsed["transfer"]:
+            clean_reply = _transfer_reply(language)
+        else:
+            clean_reply = (
+                "لا تتوفر لديّ المعلومات الكافية حاليًا، سيتواصل معك فريقنا قريبًا."
+                if language == "ar"
+                else "I don't have enough information on that right now. Our team will follow up with you."
+            )
+        logger.debug(f"route_turn: used fallback reply for empty clean_reply (raw={raw_reply!r})")
 
     follow_up = False
     follow_up_type = ""

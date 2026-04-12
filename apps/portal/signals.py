@@ -82,9 +82,9 @@ def evaluate_call_alerts(sender, instance, created, **kwargs):
                 )
                 alerts_created.append(a)
 
-    # ── 5. notify_all_calls: normal completed call ───────────────────────────
+    # ── 5. notify_all_calls: normal completed call (including caller-initiated hangup) ───
     if (
-        session.status == CallSession.Status.COMPLETED
+        session.status in (CallSession.Status.COMPLETED, CallSession.Status.ENDED_BY_CALLER)
         and session.total_turns > 0
         and not session.transfer_triggered
     ):
